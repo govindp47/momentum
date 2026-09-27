@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-momentum = "momentum.cli.main:app"
+momentum = "momentum.cli.main:main"
 
 [build-system]
 requires = ["hatchling"]
