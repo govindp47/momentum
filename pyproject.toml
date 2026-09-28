@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 momentum = "momentum.cli.main:main"
+momentum-server = "momentum.api.app:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -26,6 +27,7 @@ packages = ["src/momentum"]
 
 [dependency-groups]
 dev = [
+    "httpx2>=0.1",
     "mypy>=1.11",
     "pytest>=8.3",
     "pytest-cov>=5.0",

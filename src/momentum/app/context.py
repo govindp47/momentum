@@ -46,8 +46,12 @@ from momentum.stride.services.stats_service import (
 class AppContext:
     """Application-wide dependency context.
 
-    Owns the application database and all service dependencies created
+    Owns the application database and all application services created
     from that database connection.
+
+    The context is shared by all delivery mechanisms, including the CLI
+    and FastAPI application. Business logic remains inside domain services;
+    this class only composes their dependencies.
     """
 
     def __init__(
@@ -67,52 +71,60 @@ class AppContext:
 
         connection = self.database.conn
 
+        # repository instances and database connection.
+        ledger_task_repository = LedgerTaskRepository(connection)
+        ledger_entry_repository = LedgerEntryRepository(connection)
+
+        stride_journey_repository = StrideJourneyRepository(connection)
+        stride_milestone_repository = StrideMilestoneRepository(connection)
+        stride_progress_repository = StrideProgressRepository(connection)
+
         # LifeLedger services.
         self.ledger_task_service = LedgerTaskService(
-            LedgerTaskRepository(connection),
+            ledger_task_repository,
         )
         self.ledger_tracking_service = LedgerTrackingService(
-            LedgerTaskRepository(connection),
-            LedgerEntryRepository(connection),
+            ledger_task_repository,
+            ledger_entry_repository,
         )
         self.ledger_stats_service = LedgerStatsService(
-            LedgerTaskRepository(connection),
-            LedgerEntryRepository(connection),
+            ledger_task_repository,
+            ledger_entry_repository,
         )
 
         # Stride services.
         self.stride_journey_service = JourneyService(
-            StrideJourneyRepository(connection),
-            StrideMilestoneRepository(connection),
+            stride_journey_repository,
+            stride_milestone_repository,
             self.database.transaction,
         )
         self.stride_milestone_service = MilestoneService(
-            StrideMilestoneRepository(connection),
+            stride_milestone_repository,
             self.database.transaction,
         )
         self.stride_progress_service = ProgressService(
-            StrideJourneyRepository(connection),
-            StrideMilestoneRepository(connection),
-            StrideProgressRepository(connection),
+            stride_journey_repository,
+            stride_milestone_repository,
+            stride_progress_repository,
             self.database.transaction,
         )
         self.stride_stats_service = StrideStatsService(
-            StrideJourneyRepository(connection),
-            StrideMilestoneRepository(connection),
-            StrideProgressRepository(connection),
+            stride_journey_repository,
+            stride_milestone_repository,
+            stride_progress_repository,
         )
         self.stride_achievement_service = AchievementService(
-            StrideJourneyRepository(connection),
-            StrideProgressRepository(connection),
+            stride_journey_repository,
+            stride_progress_repository,
             self.stride_stats_service,
         )
         self.stride_export_service = ExportService(
-            StrideJourneyRepository(connection),
-            StrideMilestoneRepository(connection),
-            StrideProgressRepository(connection),
+            stride_journey_repository,
+            stride_milestone_repository,
+            stride_progress_repository,
         )
 
-        # Dashboard service.
+        # Cross-domain application service.
         self.dashboard_service = DashboardService(
             self.ledger_stats_service,
             self.stride_journey_service,

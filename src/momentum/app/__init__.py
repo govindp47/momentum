@@ -1,1 +1,1 @@
-"""Application package."""
+"""Application lifecycle and dependency construction."""

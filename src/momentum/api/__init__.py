@@ -1,1 +1,1 @@
-"""Momentum API."""
+"""FastAPI HTTP API for Momentum."""

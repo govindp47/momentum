@@ -55,6 +55,7 @@ class Database:
             self._db_path,
             timeout=5.0,
             isolation_level=None,
+            check_same_thread=False,
         )
 
         try:
