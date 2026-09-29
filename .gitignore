@@ -97,3 +97,6 @@ temp/
 # ------------------------------------------------------------
 # uv.lock is intentionally tracked for reproducible builds.
 # Do NOT ignore uv.lock.
+
+# docs
+/docs
