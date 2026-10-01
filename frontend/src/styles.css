@@ -289,3 +289,18 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+@media (max-width: 767px) {
+  .momentum-subapp-nav {
+    position: static;
+    width: 100%;
+    transform: none;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .momentum-subapp-nav::-webkit-scrollbar {
+    display: none;
+  }
+}

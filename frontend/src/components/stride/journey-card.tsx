@@ -20,6 +20,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { resolveJourneyIcon } from "./icons";
 import type { JourneyResponse } from "@/types/stride";
+import { formatPercentage } from "@/lib/utils";
 
 export function JourneyCard({
   journey,
@@ -207,7 +208,7 @@ export function JourneyCardWithProgress({
             {journey.status}
           </span>
           <span className="text-xl font-bold text-foreground">
-            {percentage}%
+            {formatPercentage(percentage)}
           </span>
         </div>
         <Progress value={percentage} className="mt-3" />

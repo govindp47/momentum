@@ -26,7 +26,7 @@ export const Route = createFileRoute("/")({
 
 function DashboardPage() {
   return (
-    <AppShell headerTitle="Dashboard">
+    <AppShell subApp="dashboard">
       <MomentumDashboard />
     </AppShell>
   );

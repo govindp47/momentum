@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Activity,
-  CalendarCheck,
+  CalendarCheck2,
   Flame,
   Gauge,
   TrendingUp,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -16,16 +16,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, PageIntro } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/stride/page-header";
 import {
   useStrideDashboard,
   useJourneyStats,
 } from "@/hooks/queries/use-stride";
 import type { DateRangePreset } from "@/types/stride";
+import { formatPercentage } from "@/lib/utils";
 
 export const Route = createFileRoute("/stride/insights")({
   head: () => ({
@@ -55,222 +55,464 @@ function StrideInsightsPage() {
   const activeJourneys =
     dashboard?.journeys.filter((dj) => dj.journey.is_active).slice(0, 4) ?? [];
 
-  // For chart: use stats from the first active journey if available
   const focusJourneyId = activeJourneys[0]?.journey.id;
-  const { data: focusStats } = useJourneyStats(focusJourneyId ?? 0, {
-    range,
-  });
 
-  // Total streak from first journey
+  const { data: focusStats, isLoading: focusStatsLoading } =
+    useJourneyStats(focusJourneyId ?? 0, {
+      range,
+    });
+
   const totalStreak = activeJourneys[0]?.streak.current_streak ?? 0;
   const totalActiveDays = activeJourneys[0]?.streak.active_days ?? 0;
+
   const totalEvents =
     dashboard?.journeys.reduce(
       (sum, dj) => sum + (dj.progress.event_count ?? 0),
       0,
     ) ?? 0;
-  const onPaceCount = activeJourneys.filter(
-    (dj) => dj.journey.is_active,
-  ).length;
 
-  // Build a simple weekly chart from stats if available
+  const activeJourneyCount = activeJourneys.length;
+
   const chartData = buildChartData(focusStats);
 
   return (
-    <AppShell headerTitle="Insights">
-      <div className="animate-fade-up space-y-5 pb-12">
-        <PageHeader
-          eyebrow="Patterns, not pressure"
-          title="Insights"
-          description="See the rhythms behind your progress and where your pace is taking you."
-          action={
-            <div className="flex rounded-xl border border-border bg-card/60 p-1">
-              {RANGE_OPTIONS.map((opt) => (
-                <Button
-                  key={opt.value}
-                  size="sm"
-                  variant={range === opt.value ? "secondary" : "ghost"}
-                  onClick={() => setRange(opt.value)}
-                >
-                  {opt.label}
-                </Button>
-              ))}
-            </div>
-          }
-        />
+    <AppShell subApp="stride">
+      <div className="mx-auto w-full max-w-5xl animate-fade-up space-y-7 pb-12 md:space-y-8">
+        <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <PageIntro
+              eyebrow="PATTERNS, NOT PRESSURE"
+              title="See how you’re moving."
+              description="Progress becomes clearer when you step back and look at the pattern."
+            />
+          </div>
 
-        {/* Stat cards */}
+          <div className="flex shrink-0 items-center gap-1 overflow-x-auto rounded-xl border border-border/70 bg-card/80 p-1 shadow-sm backdrop-blur-sm">
+            {RANGE_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                size="sm"
+                variant={range === option.value ? "secondary" : "ghost"}
+                onClick={() => setRange(option.value)}
+                className="h-7 rounded-lg px-2.5 text-[10px] font-semibold"
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </section>
+
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {isLoading ? (
-            <>
-              {[1, 2, 3, 4].map((k) => (
-                <Skeleton key={k} className="h-28 rounded-xl" />
-              ))}
-            </>
+            [1, 2, 3, 4].map((key) => (
+              <Skeleton key={key} className="h-24 rounded-xl" />
+            ))
           ) : (
             <>
               <StatCard
-                icon={<Flame size={20} />}
-                label="Current streak"
+                icon={Flame}
+                label="The rhythm you’re building."
                 value={`${totalStreak} days`}
+                iconClass="text-orange-500"
+                iconBgClass="bg-orange-500/10"
+                borderClass="border-orange-500/20"
               />
+
               <StatCard
-                icon={<CalendarCheck size={20} />}
-                label="Active days"
-                value={`${totalActiveDays}`}
+                icon={CalendarCheck2}
+                label="Days you showed up."
+                value={String(totalActiveDays)}
+                iconClass="text-sky-500"
+                iconBgClass="bg-sky-500/10"
+                borderClass="border-sky-500/20"
               />
+
               <StatCard
-                icon={<Activity size={20} />}
-                label="Progress events"
+                icon={Activity}
+                label="Steps that added up."
                 value={String(totalEvents)}
+                iconClass="text-emerald-500"
+                iconBgClass="bg-emerald-500/10"
+                borderClass="border-emerald-500/20"
               />
+
               <StatCard
-                icon={<Gauge size={20} />}
-                label="Active journeys"
-                value={`${onPaceCount}`}
+                icon={Gauge}
+                label="Paths still in motion."
+                value={String(activeJourneyCount)}
+                iconClass="text-violet-500"
+                iconBgClass="bg-violet-500/10"
+                borderClass="border-violet-500/20"
               />
             </>
           )}
         </section>
 
-        {/* Chart + projection */}
-        <section className="grid gap-4 lg:grid-cols-[1.35fr_.8fr]">
-          <div className="glass rounded-xl p-5 sm:p-6">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                Activity rhythm
-              </p>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight">
-                {focusStats
-                  ? `${focusStats.stats.journey.name} — ${focusStats.stats.period_label}`
-                  : "Progress over time"}
-              </h2>
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(240px,0.8fr)]">
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-sm md:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  Activity rhythm
+                </p>
+                <h2 className="mt-1 truncate text-xl font-bold tracking-tight md:text-2xl">
+                  {focusStats
+                    ? `${focusStats.stats.journey.name} — ${focusStats.stats.period_label}`
+                    : "The shape of your progress."}
+                </h2>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {focusStats
+                    ? `Analytics for the selected ${RANGE_OPTIONS.find((option) => option.value === range)?.label.toLowerCase() ?? "period"}`
+                    : "Select an active journey to explore its rhythm."}
+                </p>
+              </div>
+
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+              </div>
             </div>
-            <div className="mt-7 h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid
-                    stroke="var(--color-border)"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="label"
-                    stroke="var(--color-muted-foreground)"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="var(--color-muted-foreground)"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--color-popover)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 12,
-                      color: "var(--color-popover-foreground)",
-                    }}
-                  />
-                  <Bar
-                    dataKey="value"
-                    fill="var(--color-primary)"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+
+            <div className="mt-6 h-64 md:h-72">
+              {focusStatsLoading ? (
+                <div className="flex h-full items-end gap-3 px-3 pb-5">
+                  {[42, 68, 50, 82, 58, 92, 70].map((height, index) => (
+                    <Skeleton
+                      key={index}
+                      className="flex-1 rounded-t-md"
+                      style={{ height: `${height}%` }}
+                    />
+                  ))}
+                </div>
+              ) : !focusJourneyId ? (
+                <div className="flex h-full items-center justify-center rounded-lg border border-border/60 bg-background/20">
+                  <div className="text-center">
+                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-sky-500/20 bg-sky-500/10">
+                      <Activity className="h-4 w-4 text-sky-500" />
+                    </div>
+                    <p className="mt-3 text-xs font-semibold">
+                      No active journey
+                    </p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Start a journey to see progress analytics here.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 8, right: 4, left: -18, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      stroke="var(--color-border)"
+                      vertical={false}
+                      strokeDasharray="3 3"
+                    />
+                    <XAxis
+                      dataKey="label"
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={9}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                    />
+                    <YAxis
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={9}
+                      tickLine={false}
+                      axisLine={false}
+                      width={32}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "var(--color-accent)", opacity: 0.35 }}
+                      contentStyle={{
+                        background: "var(--color-popover)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 10,
+                        color: "var(--color-popover-foreground)",
+                        fontSize: 11,
+                      }}
+                    />
+                    <Bar
+                      dataKey="value"
+                      fill="var(--color-primary)"
+                      radius={[5, 5, 0, 0]}
+                      maxBarSize={42}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
-          <div className="glass rounded-xl p-6">
-            <TrendingUp className="text-primary" size={20} />
-            <p className="mt-5 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Journey progress
-            </p>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight">
-              {activeJourneys.length} active
-            </h2>
-            <p className="mt-3 text-sm text-muted-foreground">
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-sm md:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  Journey progress
+                </p>
+                <h2 className="mt-1 text-xl font-bold tracking-tight md:text-2xl">
+                  {activeJourneys.length} active
+                </h2>
+              </div>
+
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+              </div>
+            </div>
+
+            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
               Your journeys are moving forward. Keep the rhythm going.
             </p>
-            <div className="mt-6 space-y-4">
-              {activeJourneys.map((dj) => (
-                <div key={dj.journey.id}>
-                  <div className="flex justify-between text-xs">
-                    <span className="truncate">{dj.journey.name}</span>
-                    <span className="ml-2 shrink-0 text-muted-foreground">
-                      {dj.progress.percentage}%
-                    </span>
+
+            {activeJourneys.length > 0 ? (
+              <div className="mt-6 space-y-4">
+                {activeJourneys.map((dj) => (
+                  <div key={dj.journey.id}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 truncate text-[10px] font-semibold">
+                        {dj.journey.name}
+                      </span>
+                      <span className="shrink-0 text-[10px] font-bold text-muted-foreground">
+                        {formatPercentage(dj.progress.percentage)}
+                      </span>
+                    </div>
+
+                    <Progress
+                      value={dj.progress.percentage}
+                      className="mt-2 h-1.5"
+                    />
                   </div>
-                  <Progress value={dj.progress.percentage} className="mt-2" />
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6 rounded-lg border border-border/60 bg-background/20 p-4 text-[10px] text-muted-foreground">
+                No active journeys to track yet.
+              </div>
+            )}
           </div>
         </section>
 
-        {/* Journey comparison */}
-        <section className="glass rounded-xl p-6">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Journey comparison
-          </p>
-          <h2 className="mt-1 text-2xl font-bold tracking-tight">
-            Momentum by journey
-          </h2>
+        <section className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-sm md:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                Where your energy is going.
+              </p>
+              <h2 className="mt-1 text-xl font-bold tracking-tight md:text-2xl">
+                Momentum by journey
+              </h2>
+            </div>
+
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10">
+              <Gauge className="h-4 w-4 text-violet-500" />
+            </div>
+          </div>
+
           {isLoading ? (
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((k) => (
-                <Skeleton key={k} className="h-28 rounded-xl" />
+              {[1, 2, 3, 4].map((key) => (
+                <Skeleton key={key} className="h-28 rounded-xl" />
               ))}
             </div>
           ) : activeJourneys.length > 0 ? (
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {activeJourneys.map((dj) => (
-                <div
+              {activeJourneys.map((dj, index) => (
+                <JourneyComparisonCard
                   key={dj.journey.id}
-                  className="rounded-xl border border-border bg-card/60 p-4"
-                >
-                  <div className="truncate text-sm">{dj.journey.name}</div>
-                  <div className="mt-4 text-3xl font-bold">
-                    {dj.progress.percentage}%
-                  </div>
-                  <div className="mt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    overall progress
-                  </div>
-                </div>
+                  name={dj.journey.name}
+                  percentage={dj.progress.percentage}
+                  index={index}
+                />
               ))}
             </div>
           ) : (
-            <p className="mt-6 text-sm text-muted-foreground">
+            <div className="mt-6 rounded-lg border border-border/60 bg-background/20 p-4 text-xs text-muted-foreground">
               No active journeys to compare.
-            </p>
+            </div>
           )}
         </section>
+
+        {!isLoading && activeJourneys.length > 0 && (
+          <section className="grid gap-3 sm:grid-cols-3">
+            <InsightNote
+              icon={Flame}
+              title="Keep the streak"
+              description={`${totalStreak} day${totalStreak === 1 ? "" : "s"} of current momentum.`}
+              iconClass="text-orange-500"
+              iconBgClass="bg-orange-500/10"
+            />
+
+            <InsightNote
+              icon={CalendarCheck2}
+              title="Stay consistent"
+              description={`${totalActiveDays} active day${totalActiveDays === 1 ? "" : "s"} recorded for your focus journey.`}
+              iconClass="text-sky-500"
+              iconBgClass="bg-sky-500/10"
+            />
+
+            <InsightNote
+              icon={Activity}
+              title="Keep logging"
+              description={`${totalEvents} progress event${totalEvents === 1 ? "" : "s"} recorded across your journeys.`}
+              iconClass="text-emerald-500"
+              iconBgClass="bg-emerald-500/10"
+            />
+          </section>
+        )}
       </div>
     </AppShell>
   );
 }
 
 function StatCard({
-  icon,
+  icon: Icon,
   label,
   value,
+  iconClass,
+  iconBgClass,
+  borderClass,
 }: {
-  icon: ReactNode;
+  icon: typeof Flame;
   label: string;
   value: string;
+  iconClass: string;
+  iconBgClass: string;
+  borderClass: string;
 }) {
   return (
-    <div className="glass rounded-xl p-5">
-      <div className="flex items-center justify-between text-primary">
-        {icon}
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+    <div
+      className={`overflow-hidden rounded-xl border ${borderClass} bg-card/80 p-4 shadow-sm backdrop-blur-sm md:p-5`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconBgClass}`}
+        >
+          <Icon className={`h-4 w-4 ${iconClass}`} />
+        </div>
+
+        <span className="truncate text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
           {label}
         </span>
       </div>
-      <div className="mt-5 text-3xl font-bold">{value}</div>
+
+      <div className={`mt-4 text-2xl font-bold tracking-tight ${iconClass}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function JourneyComparisonCard({
+  name,
+  percentage,
+  index,
+}: {
+  name: string;
+  percentage: number;
+  index: number;
+}) {
+  const accents = [
+    {
+      value: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      border: "border-emerald-500/20",
+      bar: "bg-emerald-500",
+    },
+    {
+      value: "text-sky-500",
+      bg: "bg-sky-500/10",
+      border: "border-sky-500/20",
+      bar: "bg-sky-500",
+    },
+    {
+      value: "text-violet-500",
+      bg: "bg-violet-500/10",
+      border: "border-violet-500/20",
+      bar: "bg-violet-500",
+    },
+    {
+      value: "text-orange-500",
+      bg: "bg-orange-500/10",
+      border: "border-orange-500/20",
+      bar: "bg-orange-500",
+    },
+  ];
+
+  function getJourneyAccent(index: number) {
+    return (
+      accents[index % accents.length] ?? {
+        value: "text-emerald-500",
+        bg: "bg-emerald-500/10",
+        border: "border-emerald-500/20",
+        bar: "bg-emerald-500",
+      }
+    );
+  }
+
+  const accent = getJourneyAccent(index);
+
+  return (
+    <div
+      className={`overflow-hidden rounded-xl border ${accent.border} bg-background/20 p-4 transition-colors hover:bg-accent/20`}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${accent.bar}`}
+          aria-hidden="true"
+        />
+        <div className="min-w-0 truncate text-[11px] font-semibold">
+          {name}
+        </div>
+      </div>
+
+      <div className={`mt-4 text-2xl font-bold tracking-tight ${accent.value}`}>
+        {formatPercentage(percentage)}%
+      </div>
+
+      <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        overall progress
+      </div>
+
+      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-secondary">
+        <div
+          className={`h-full rounded-full transition-all ${accent.bar}`}
+          style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function InsightNote({
+  icon: Icon,
+  title,
+  description,
+  iconClass,
+  iconBgClass,
+}: {
+  icon: typeof Flame;
+  title: string;
+  description: string;
+  iconClass: string;
+  iconBgClass: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-card/70 p-4 shadow-sm backdrop-blur-sm">
+      <div
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconBgClass}`}
+      >
+        <Icon className={`h-4 w-4 ${iconClass}`} />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          {title}
+        </p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      </div>
     </div>
   );
 }
@@ -280,18 +522,9 @@ function buildChartData(
   stats: import("@/types/stride").JourneyAnalyticsResponse | undefined,
 ): Array<{ label: string; value: number }> {
   if (!stats) {
-    // Decorative fallback while loading or when no journey selected
-    return [
-      { label: "Mon", value: 3 },
-      { label: "Tue", value: 6 },
-      { label: "Wed", value: 4 },
-      { label: "Thu", value: 8 },
-      { label: "Fri", value: 5 },
-      { label: "Sat", value: 10 },
-      { label: "Sun", value: 7 },
-    ];
+    return [];
   }
-  // Use backend stats as single bar for the period
+
   return [
     {
       label: stats.stats.period_label,
@@ -299,7 +532,7 @@ function buildChartData(
     },
     {
       label: "Best day",
-      value: stats.stats.best_day_value,
+      value: Number(stats.stats.best_day_value.toFixed(2)),
     },
     {
       label: "Avg/day",

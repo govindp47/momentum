@@ -73,8 +73,10 @@ function deriveOverallTrend(stats: OverallStatsResponse): Trend {
   const trends = stats.task_stats.map((ts) => ts.trend);
   const up = trends.filter((t) => t === "↑").length;
   const down = trends.filter((t) => t === "↓").length;
+
   if (up > down) return "↑";
   if (down > up) return "↓";
+
   return "→";
 }
 
@@ -97,7 +99,6 @@ function fmtRateNum(rate: number | null): number {
 // ---------------------------------------------------------------------------
 
 function InsightsPage() {
-  // Fetch 90-day stats for the main metrics and per-commitment section
   const {
     data: stats90,
     isLoading: loading90,
@@ -106,13 +107,9 @@ function InsightsPage() {
     refetch: refetch90,
   } = useLedgerStats(90);
 
-  // Fetch 7-day stats for the 7-day window
   const { data: stats7 } = useLedgerStats(7);
-
-  // Fetch 30-day stats for the 30-day window
   const { data: stats30 } = useLedgerStats(30);
 
-  // Fetch weekly chart data (12 weeks)
   const {
     data: weeklyRates,
     isLoading: weeklyLoading,
@@ -123,20 +120,20 @@ function InsightsPage() {
   const overallTrend: Trend = stats90 ? deriveOverallTrend(stats90) : "—";
   const TrendIconComp = trendIcon[overallTrend];
 
-  // Compute aggregate streaks — max current streak / max longest streak across tasks
   const allStreaks = (stats90?.task_stats ?? []).filter(
     (ts) => ts.current_streak > 0 || ts.longest_streak > 0,
   );
+
   const maxCurrentStreak = allStreaks.reduce(
     (acc, ts) => Math.max(acc, ts.current_streak),
     0,
   );
+
   const maxLongestStreak = allStreaks.reduce(
     (acc, ts) => Math.max(acc, ts.longest_streak),
     0,
   );
 
-  // Coverage: tracked_days / total_days
   const trackingCoverageNum =
     stats90 && stats90.total_days > 0
       ? Math.round((stats90.tracked_days / stats90.total_days) * 100)
@@ -148,37 +145,46 @@ function InsightsPage() {
       value: fmtRate(stats90?.avg_rate ?? null),
       note: "of recorded entries",
       icon: Gauge,
+      iconClass: "text-emerald-500",
+      iconBgClass: "bg-emerald-500/10",
     },
     {
       label: "Tracking coverage",
       value: trackingCoverageNum !== null ? `${trackingCoverageNum}%` : "—",
       note: "of trackable days",
       icon: CalendarCheck2,
+      iconClass: "text-sky-500",
+      iconBgClass: "bg-sky-500/10",
     },
     {
       label: "Current streak",
       value: loading90 ? "…" : `${maxCurrentStreak} days`,
       note: "fully recorded",
       icon: Flame,
+      iconClass: "text-orange-500",
+      iconBgClass: "bg-orange-500/10",
     },
     {
       label: "Longest streak",
       value: loading90 ? "…" : `${maxLongestStreak} days`,
       note: "across commitments",
       icon: Target,
+      iconClass: "text-violet-500",
+      iconBgClass: "bg-violet-500/10",
     },
   ];
 
   if (loading90) {
     return (
-      <AppShell headerTitle="Insights">
-        <div className="mx-auto max-w-6xl space-y-8">
+      <AppShell subApp="ledger">
+        <div className="mx-auto w-full max-w-5xl space-y-7 md:space-y-8">
           <PageIntro
             eyebrow="LAST 90 DAYS"
             title="Patterns, not judgments."
             description="Completion is calculated from recorded entries. Tracking coverage is shown separately."
           />
-          <div className="border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-7 text-center text-sm text-muted-foreground shadow-sm backdrop-blur-sm">
             Loading insights…
           </div>
         </div>
@@ -189,18 +195,21 @@ function InsightsPage() {
   if (error90) {
     const message =
       err90 instanceof ApiError ? err90.message : "Failed to load insights.";
+
     return (
-      <AppShell headerTitle="Insights">
-        <div className="mx-auto max-w-6xl">
-          <div className="border border-status-no/40 bg-status-no/10 p-6">
+      <AppShell subApp="ledger">
+        <div className="mx-auto w-full max-w-5xl">
+          <div className="overflow-hidden rounded-xl border border-status-no/30 bg-status-no/5 p-5 shadow-sm">
             <p className="text-sm font-semibold text-status-no">
               Could not load insights
             </p>
+
             <p className="mt-1 text-xs text-muted-foreground">{message}</p>
+
             <Button
               variant="outline"
               size="sm"
-              className="mt-4"
+              className="mt-3 rounded-lg"
               onClick={() => void refetch90()}
             >
               Try again
@@ -214,90 +223,120 @@ function InsightsPage() {
   const noData = !stats90 || stats90.task_stats.length === 0;
 
   return (
-    <AppShell headerTitle="Insights">
-      <div className="mx-auto max-w-6xl space-y-8">
-        <PageIntro
-          eyebrow="LAST 90 DAYS"
-          title="Patterns, not judgments."
-          description="Completion is calculated from recorded entries. Tracking coverage is shown separately."
-        />
+    <AppShell subApp="ledger">
+      <div className="mx-auto w-full max-w-5xl space-y-7 md:space-y-8">
+        {/* ── Page introduction ───────────────────────────────────────── */}
+        <section className="animate-fade-up">
+          <PageIntro
+            eyebrow="LAST 90 DAYS"
+            title="Patterns, not judgments."
+            description="Completion is calculated from recorded entries. Tracking coverage is shown separately."
+          />
+        </section>
 
-        {/* Key metrics */}
+        {/* ── Key metrics ──────────────────────────────────────────────── */}
         <section
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          className="grid grid-cols-2 gap-3 md:grid-cols-4"
           aria-label="Key metrics"
         >
-          {metrics.map(({ label, value, note, icon: Icon }, index) => (
+          {metrics.map(({ label, value, note, icon: Icon, iconClass, iconBgClass }, index) => (
             <div
               key={label}
-              className="animate-fade-up border border-border bg-card p-6 opacity-0 [animation-fill-mode:forwards]"
+              className="animate-fade-up rounded-xl border border-border/70 bg-card/80 p-4 opacity-0 shadow-sm backdrop-blur-sm [animation-fill-mode:forwards] md:p-5"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div className="mb-4 flex items-start justify-between">
-                <p className="text-sm font-medium text-muted-foreground">
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
                   {label}
                 </p>
-                <Icon className="h-4 w-4 text-muted-foreground" />
+
+                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${iconBgClass}`}>
+                  <Icon className={`h-3.5 w-3.5 ${iconClass}`} />
+                </div>
               </div>
-              <p className="text-4xl font-bold tracking-tight">{value}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{note}</p>
+
+              <p className="text-2xl font-bold tracking-tight md:text-3xl">
+                {value}
+              </p>
+
+              <p className="mt-1 text-[10px] font-medium text-muted-foreground md:text-[11px]">
+                {note}
+              </p>
             </div>
           ))}
         </section>
 
-        {/* Chart + time windows */}
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.75fr)]">
-          {/* Weekly completion trend chart */}
-          <div className="border border-border bg-card p-5 md:p-6">
-            <div className="mb-8 flex items-start justify-between">
+        {/* ── Chart + time windows ────────────────────────────────────── */}
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.75fr)]">
+          {/* Weekly completion trend */}
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur-sm md:p-5">
+            <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-sm font-semibold">Completion trend</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <h3 className="text-sm font-bold tracking-tight">
+                  Completion trend
+                </h3>
+
+                <p className="mt-1 text-[11px] font-medium text-muted-foreground">
                   Weekly rate · recorded entries only
                 </p>
               </div>
+
               <span
-                className={`flex items-center gap-1 text-xs font-medium ${trendClass[overallTrend]}`}
+                className={`flex shrink-0 items-center gap-1 rounded-full border border-border/60 bg-background/40 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.08em] ${trendClass[overallTrend]}`}
               >
-                <TrendIconComp className="h-3 w-3" /> {trendLabel[overallTrend]}
+                <TrendIconComp className="h-3 w-3" />
+                {trendLabel[overallTrend]}
               </span>
             </div>
 
             {weeklyLoading ? (
-              <div className="flex h-64 items-center justify-center border-b border-l border-border text-xs text-muted-foreground">
+              <div className="flex h-56 items-center justify-center rounded-lg border border-border/60 bg-background/20 text-xs text-muted-foreground">
                 Loading chart…
               </div>
             ) : weeklyError || !weeklyRates ? (
-              <div className="flex h-64 flex-col items-center justify-center border-b border-l border-border text-xs text-status-no">
+              <div className="flex h-56 flex-col items-center justify-center rounded-lg border border-border/60 bg-background/20 text-xs text-status-no">
                 <p>Failed to load chart</p>
+
                 <Button
                   variant="link"
                   size="sm"
                   onClick={() => void refetchWeekly()}
-                  className="mt-1 h-auto p-0"
+                  className="mt-1 h-auto p-0 text-xs"
                 >
                   Try again
                 </Button>
               </div>
             ) : (
-              <div className="relative h-64 border-b border-l border-border">
-                <div className="absolute inset-0 flex flex-col justify-between text-[10px] text-muted-foreground">
-                  <span className="-translate-x-7">100%</span>
-                  <span className="-translate-x-6">75%</span>
-                  <span className="-translate-x-6">50%</span>
-                  <span className="-translate-x-5">25%</span>
+              <div className="relative h-56">
+                <div className="absolute inset-y-0 left-0 flex flex-col justify-between pb-5 pt-0 text-[9px] text-muted-foreground">
+                  <span>100%</span>
+                  <span>75%</span>
+                  <span>50%</span>
+                  <span>25%</span>
+                  <span>0%</span>
                 </div>
-                <div className="absolute inset-0 flex items-end gap-2 px-3 md:gap-3">
+
+                <div className="absolute inset-y-0 left-8 right-0 flex flex-col justify-between pb-5">
+                  {[100, 75, 50, 25, 0].map((value) => (
+                    <div
+                      key={value}
+                      className="border-t border-border/50"
+                    />
+                  ))}
+                </div>
+
+                <div className="absolute inset-y-0 bottom-5 left-9 right-0 flex items-end gap-1.5 px-2 md:gap-2">
                   {weeklyRates.map((rate, index) => (
                     <div
                       key={index}
                       className="group relative flex h-full flex-1 items-end"
                     >
                       <div
-                        className="w-full bg-primary/25 transition-colors group-hover:bg-primary"
+                        className="w-full min-h-px rounded-t-sm bg-primary/25 transition-all duration-200 group-hover:bg-primary"
                         style={{ height: `${rate}%` }}
                       />
-                      <span className="pointer-events-none absolute -top-5 left-1/2 hidden -translate-x-1/2 text-[10px] group-hover:block">
+
+                      <span className="pointer-events-none absolute -top-5 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border/70 bg-card px-1.5 py-0.5 text-[9px] font-semibold shadow-sm group-hover:block">
                         {rate}%
                       </span>
                     </div>
@@ -306,19 +345,23 @@ function InsightsPage() {
               </div>
             )}
 
-            <div className="mt-3 flex justify-between text-[10px] text-muted-foreground">
+            <div className="mt-2 flex justify-between pl-9 text-[9px] font-medium text-muted-foreground">
               <span>12 weeks ago</span>
               <span>This week</span>
             </div>
           </div>
 
           {/* Time windows */}
-          <div className="border border-border bg-card p-5 md:p-6">
-            <h3 className="text-sm font-semibold">Time windows</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur-sm md:p-5">
+            <h3 className="text-sm font-bold tracking-tight">
+              Time windows
+            </h3>
+
+            <p className="mt-1 text-[11px] font-medium text-muted-foreground">
               Completion rate by period
             </p>
-            <div className="mt-6 space-y-6">
+
+            <div className="mt-5 space-y-5">
               {[
                 {
                   label: "7 days",
@@ -337,13 +380,19 @@ function InsightsPage() {
                 },
               ].map(({ label, value, raw }) => (
                 <div key={label}>
-                  <div className="mb-2 flex justify-between text-sm">
-                    <span className="text-muted-foreground">{label}</span>
-                    <strong>{raw !== null ? `${value}%` : "—"}</strong>
+                  <div className="mb-1.5 flex justify-between text-[11px]">
+                    <span className="font-medium text-muted-foreground">
+                      {label}
+                    </span>
+
+                    <strong className="font-bold">
+                      {raw !== null ? `${value}%` : "—"}
+                    </strong>
                   </div>
-                  <div className="h-1.5 bg-secondary">
+
+                  <div className="h-1.5 overflow-hidden rounded-full bg-secondary/80">
                     <div
-                      className="h-full bg-primary"
+                      className="h-full rounded-full bg-primary transition-all duration-500"
                       style={{ width: `${value}%` }}
                     />
                   </div>
@@ -351,22 +400,33 @@ function InsightsPage() {
               ))}
             </div>
 
-            <div className="mt-8 grid grid-cols-2 border border-border">
-              <div className="border-r border-border p-4">
-                <p className="text-xs text-muted-foreground">Highest</p>
-                <p className="mt-1 text-xl font-bold">
+            <div className="mt-6 grid grid-cols-2 overflow-hidden rounded-lg border border-border/70 bg-background/20">
+              <div className="border-r border-border/70 p-3">
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  Highest
+                </p>
+
+                <p className="mt-1 text-lg font-bold tracking-tight">
                   {fmtRate(stats90?.max_rate ?? null)}
                 </p>
               </div>
-              <div className="p-4">
-                <p className="text-xs text-muted-foreground">Lowest</p>
-                <p className="mt-1 text-xl font-bold">
+
+              <div className="p-3">
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  Lowest
+                </p>
+
+                <p className="mt-1 text-lg font-bold tracking-tight">
                   {fmtRate(stats90?.min_rate ?? null)}
                 </p>
               </div>
-              <div className="col-span-2 border-t border-border p-4">
-                <p className="text-xs text-muted-foreground">Spread</p>
-                <p className="mt-1 text-xl font-bold">
+
+              <div className="col-span-2 border-t border-border/70 p-3">
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  Spread
+                </p>
+
+                <p className="mt-1 text-lg font-bold tracking-tight">
                   {stats90?.spread !== null && stats90?.spread !== undefined
                     ? `${Math.round(stats90.spread * 100)} points`
                     : "—"}
@@ -376,35 +436,43 @@ function InsightsPage() {
           </div>
         </section>
 
-        {/* Per-commitment breakdown */}
+        {/* ── Per-commitment breakdown ────────────────────────────────── */}
         <section>
-          <div className="mb-3">
-            <h3 className="text-sm font-semibold">By commitment</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Completion and recording coverage are intentionally separate.
-            </p>
+          <div className="mb-3 flex items-end justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold tracking-tight">
+                By commitment
+              </h3>
+
+              <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+                Completion and recording coverage are intentionally separate.
+              </p>
+            </div>
           </div>
 
           {noData ? (
-            <div className="border border-border bg-card p-8 text-center">
+            <div className="rounded-xl border border-border/70 bg-card/80 p-9 text-center shadow-sm backdrop-blur-sm">
               <p className="text-sm font-semibold">No data yet</p>
+
               <p className="mt-1 text-xs text-muted-foreground">
-                Start recording your commitments to see per-commitment insights.
+                Start recording your commitments to see per-commitment
+                insights.
               </p>
             </div>
           ) : (
-            <div className="border border-border bg-card">
+            <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm">
               {stats90!.task_stats.map((ts, index) => {
                 const Icon = iconMap[getTaskIcon(ts.task.name)];
                 const trend = ts.trend;
                 const TrendIcon = trendIcon[trend];
                 const completionPct = fmtRateNum(ts.completion_rate);
-                // Coverage = recorded / total period days (excluding pre-creation days)
+
                 const periodDays =
                   (new Date(ts.end_date).getTime() -
                     new Date(ts.start_date).getTime()) /
                     86_400_000 +
                   1;
+
                 const coveragePct =
                   periodDays > 0
                     ? Math.round((ts.recorded / periodDays) * 100)
@@ -413,30 +481,41 @@ function InsightsPage() {
                 return (
                   <div
                     key={ts.task.id}
-                    className={`grid gap-5 p-5 md:grid-cols-[minmax(180px,0.7fr)_1fr_1fr_auto] md:items-center ${index < stats90!.task_stats.length - 1 ? "border-b border-border" : ""}`}
+                    className={`grid gap-4 p-4 md:grid-cols-[minmax(160px,0.7fr)_1fr_1fr_auto] md:items-center md:p-5 ${
+                      index < stats90!.task_stats.length - 1
+                        ? "border-b border-border/70"
+                        : ""
+                    }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-secondary text-muted-foreground">
-                        <Icon className="h-4 w-4" />
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-secondary/70 text-muted-foreground">
+                        <Icon className="h-3.5 w-3.5" />
                       </div>
-                      <span className="text-sm font-medium">
+
+                      <span className="truncate text-xs font-semibold">
                         {ts.task.name}
                       </span>
                     </div>
+
                     <Rate
                       label="Completion"
-                      value={ts.completion_rate !== null ? completionPct : null}
+                      value={
+                        ts.completion_rate !== null ? completionPct : null
+                      }
                       color="bg-primary"
                     />
+
                     <Rate
                       label="Coverage"
                       value={coveragePct}
                       color="bg-foreground/60"
                     />
+
                     <span
-                      className={`flex min-w-20 items-center justify-end gap-1 text-xs font-medium ${trendClass[trend]}`}
+                      className={`flex min-w-16 items-center justify-end gap-1 text-[10px] font-bold uppercase tracking-[0.06em] ${trendClass[trend]}`}
                     >
-                      <TrendIcon className="h-3 w-3" /> {trendLabel[trend]}
+                      <TrendIcon className="h-3 w-3" />
+                      {trendLabel[trend]}
                     </span>
                   </div>
                 );
@@ -460,13 +539,17 @@ function Rate({
 }) {
   return (
     <div>
-      <div className="mb-2 flex justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span>{value !== null ? `${value}%` : "—"}</span>
+      <div className="mb-1.5 flex justify-between text-[10px]">
+        <span className="font-medium text-muted-foreground">{label}</span>
+
+        <span className="font-semibold">
+          {value !== null ? `${value}%` : "—"}
+        </span>
       </div>
-      <div className="h-1 bg-secondary">
+
+      <div className="h-1.5 overflow-hidden rounded-full bg-secondary/80">
         <div
-          className={`h-full ${color}`}
+          className={`h-full rounded-full ${color} transition-all duration-500`}
           style={{ width: `${value ?? 0}%` }}
         />
       </div>

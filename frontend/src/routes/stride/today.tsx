@@ -12,10 +12,9 @@ import {
   Trophy,
 } from "lucide-react";
 import { useState } from "react";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, PageIntro } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { ProgressDialog } from "@/components/stride/progress-dialog";
 import {
   JourneyCardWithProgress,
@@ -25,6 +24,7 @@ import {
   useStrideDashboard,
   useJourneyMilestones,
 } from "@/hooks/queries/use-stride";
+import { formatPercentage } from "@/lib/utils";
 
 export const Route = createFileRoute("/stride/today")({
   head: () => ({
@@ -52,16 +52,15 @@ function StrideTodayPage() {
     data?.journeys.filter((dj) => dj.journey.is_active).slice(0, 4) ?? [];
 
   const todayTotal = Object.values(data?.today_activity ?? {}).reduce(
-    (sum, a) => sum + (a.total_value ?? 0),
+    (sum, activity) => sum + (activity.total_value ?? 0),
     0,
   );
+
   const todayCount = Object.keys(data?.today_activity ?? {}).length;
 
-  // For the milestone path we show the focus journey's milestones
   const focusJourney = activeJourneys[0];
   const focusJourneyId = focusJourney?.journey.id;
 
-  // Streak from first active journey
   const streak = activeJourneys[0]?.streak.current_streak ?? 0;
 
   const now = new Date();
@@ -72,54 +71,56 @@ function StrideTodayPage() {
   });
 
   return (
-    <AppShell headerTitle="Today">
-      <div className="animate-fade-up space-y-12 pb-12">
-        {/* Hero greeting */}
-        <section className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 sm:flex sm:flex-wrap sm:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="relative mt-1 flex size-12 shrink-0 items-center justify-center">
-              <div className="absolute inset-0 rotate-45 rounded-xl border border-primary/30 bg-primary/10 shadow-glow" />
-              <Mountain className="relative text-primary" size={23} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                {dayName} · {dateName}
-              </p>
-              <h1 className="mt-1 text-4xl font-bold tracking-tight sm:text-5xl">
-                Good morning.
-              </h1>
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                Your journeys are moving. Keep the rhythm going today.
-              </p>
-            </div>
+    <AppShell subApp="stride">
+      <div className="mx-auto w-full max-w-5xl animate-fade-up space-y-7 pb-12 md:space-y-8">
+        {/* ── Page introduction ───────────────────────────────────────── */}
+        <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <PageIntro
+              eyebrow={`${dayName.toUpperCase()} · ${dateName.toUpperCase()}`}
+              title="Keep moving forward."
+              description="Your journeys are moving. Keep the rhythm going today."
+            />
           </div>
-          <Button onClick={() => setLogOpen(true)}>
-            <Plus size={17} />
+
+          <Button
+            onClick={() => setLogOpen(true)}
+            className="w-full shrink-0 rounded-lg shadow-sm sm:w-auto"
+          >
+            <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Log progress</span>
+            <span className="sm:hidden">Log progress</span>
           </Button>
         </section>
 
-        {/* Momentum + Today cards */}
-        <section className="grid gap-4 xl:grid-cols-[1.45fr_.8fr]">
-          {/* Streak/momentum */}
-          <div className="glass-strong relative overflow-hidden rounded-xl p-6 sm:p-7">
-            <div className="relative flex flex-col justify-between gap-8 sm:flex-row">
+        {/* ── Momentum + Today ────────────────────────────────────────── */}
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(240px,0.8fr)]">
+          {/* Momentum */}
+          <div className="relative overflow-hidden rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-sm md:p-6">
+            <div className="relative flex flex-col justify-between gap-7 sm:flex-row">
               <div>
-                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  <Flame size={14} className="text-primary" />
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-orange-500/25 bg-orange-500/10">
+                    <Flame className="h-3.5 w-3.5 text-orange-500" />
+                  </span>
                   Current momentum
                 </div>
+
                 {isLoading ? (
-                  <Skeleton className="mt-5 h-16 w-32" />
+                  <Skeleton className="mt-5 h-14 w-28 rounded-lg" />
                 ) : (
                   <>
                     <div className="mt-5 flex items-end gap-3">
-                      <span className="text-6xl font-bold">{streak}</span>
-                      <span className="mb-2 text-sm text-muted-foreground">
+                      <span className="text-5xl font-bold tracking-tight md:text-6xl">
+                        {streak}
+                      </span>
+
+                      <span className="mb-2 text-xs font-medium text-muted-foreground">
                         day streak
                       </span>
                     </div>
-                    <p className="mt-3 max-w-sm text-sm text-muted-foreground">
+
+                    <p className="mt-3 max-w-sm text-xs leading-relaxed text-muted-foreground">
                       {activeJourneys.length > 0
                         ? `${activeJourneys.length} active journey${activeJourneys.length > 1 ? "s" : ""} in motion.`
                         : "Start a journey to build your streak."}
@@ -127,19 +128,28 @@ function StrideTodayPage() {
                   </>
                 )}
               </div>
-              {/* Activity bars (decorative) */}
+
+              {/* Activity bars */}
               <div
                 className="flex items-end gap-2"
                 aria-label="Decorative activity chart"
               >
-                {ACTIVITY_HEIGHTS.map((h, i) => (
-                  <div key={i} className="flex flex-col items-center gap-2">
+                {ACTIVITY_HEIGHTS.map((height, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-col items-center gap-1.5"
+                  >
                     <div
-                      className={`activity-bar w-7 rounded-t-md ${i === 6 ? "bg-primary" : "bg-primary/30"}`}
-                      style={{ height: h }}
+                      className={`w-5 rounded-t-md transition-colors md:w-6 ${
+                        index === 6
+                          ? "bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.18)]"
+                          : "bg-primary/20"
+                      }`}
+                      style={{ height }}
                     />
-                    <span className="text-[10px] text-muted-foreground">
-                      {DAYS[i]}
+
+                    <span className="text-[8px] font-medium text-muted-foreground">
+                      {DAYS[index]}
                     </span>
                   </div>
                 ))}
@@ -147,153 +157,186 @@ function StrideTodayPage() {
             </div>
           </div>
 
-          {/* Today's activity summary */}
-          <div className="glass rounded-xl p-6">
+          {/* Today's activity */}
+          <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-sm md:p-6">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 Today
               </p>
-              <Sparkles size={16} className="text-primary" />
+
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10">
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              </span>
             </div>
+
             {isLoading ? (
-              <Skeleton className="mt-5 h-10 w-24" />
+              <Skeleton className="mt-5 h-9 w-24 rounded-lg" />
             ) : (
               <>
-                <div className="mt-5 text-3xl font-bold">
+                <div className="mt-5 text-3xl font-bold tracking-tight">
                   {formatValue(todayTotal)}
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
+
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   progress logged across {todayCount} update
                   {todayCount === 1 ? "" : "s"}
                 </p>
               </>
             )}
+
             {!isLoading && todayTotal > 0 && (
-              <div className="mt-6 flex items-center gap-2 text-xs text-primary">
-                <Check size={14} />
+              <div className="mt-5 flex items-center gap-2 text-[10px] font-semibold text-emerald-500">
+                <Check className="h-3.5 w-3.5" />
                 One meaningful step today
               </div>
             )}
           </div>
         </section>
 
-        {/* Active journeys */}
+        {/* ── Active journeys ─────────────────────────────────────────── */}
         <section>
-          <div className="flex items-end justify-between">
+          <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 In motion
               </p>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight">
+
+              <h2 className="mt-1 text-xl font-bold tracking-tight md:text-2xl">
                 Active journeys
               </h2>
             </div>
+
             <Link
               to="/stride/journeys"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
             >
-              View all <ArrowRight size={13} />
+              View all
+              <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
 
           {isLoading ? (
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {[1, 2].map((k) => (
-                <Skeleton key={k} className="h-40 rounded-xl" />
+              {[1, 2].map((key) => (
+                <Skeleton key={key} className="h-40 rounded-xl" />
               ))}
             </div>
           ) : error ? (
-            <div className="mt-4 glass rounded-xl p-6 text-center">
-              <p className="text-sm text-muted-foreground">
+            <div className="mt-4 overflow-hidden rounded-xl border border-status-no/30 bg-status-no/5 p-6 text-center shadow-sm">
+              <p className="text-xs font-medium text-status-no">
                 Unable to load journeys.
               </p>
             </div>
           ) : activeJourneys.length === 0 ? (
-            <div className="mt-4 glass rounded-xl p-8 text-center">
-              <p className="text-muted-foreground">
-                No active journeys yet.{" "}
-                <Link
-                  to="/stride/journeys/new"
-                  className="text-primary hover:underline"
-                >
-                  Create one
-                </Link>
-                .
+            <div className="mt-4 overflow-hidden rounded-xl border border-border/70 bg-card/80 p-8 text-center shadow-sm backdrop-blur-sm">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-border/70 bg-secondary/70 text-muted-foreground">
+                <Mountain className="h-4 w-4" />
+              </div>
+
+              <p className="mt-3 text-xs font-semibold">
+                No active journeys yet.
               </p>
+
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Start something worth moving toward.
+              </p>
+
+              <Link
+                to="/stride/journeys/new"
+                className="mt-4 inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline"
+              >
+                Create a journey
+                <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           ) : (
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {activeJourneys.map((dj) => (
+              {activeJourneys.map((journey) => (
                 <JourneyCardWithProgress
-                  key={dj.journey.id}
-                  journey={dj.journey}
-                  percentage={dj.progress.percentage}
-                  currentValue={dj.progress.current_value}
+                  key={journey.journey.id}
+                  journey={journey.journey}
+                  percentage={journey.progress.percentage}
+                  currentValue={journey.progress.current_value}
                 />
               ))}
             </div>
           )}
         </section>
 
-        {/* Milestone path + Pace + Achievement */}
+        {/* ── Milestones + Pace / Achievement ─────────────────────────── */}
         <section className="grid gap-4 lg:grid-cols-2">
           <MilestonePath journeyId={focusJourneyId} />
 
           <div className="space-y-4">
-            {/* Pace card */}
-            <div className="glass rounded-xl p-6">
-              <div className="flex items-center justify-between">
+            {/* Pace */}
+            <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-sm md:p-6">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                     Pace
                   </p>
+
                   {isLoading ? (
-                    <Skeleton className="mt-2 h-8 w-36" />
+                    <Skeleton className="mt-2 h-7 w-36 rounded-lg" />
                   ) : (
-                    <h2 className="mt-1 text-2xl font-bold tracking-tight">
+                    <h2 className="mt-1 text-xl font-bold tracking-tight">
                       {activeJourneys[0]?.streak.active_days ?? 0} active days
                     </h2>
                   )}
                 </div>
-                <Gauge size={22} className="text-primary" />
+
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-sky-500/20 bg-sky-500/10">
+                  <Gauge className="h-4 w-4 text-sky-500" />
+                </span>
               </div>
+
               {!isLoading && activeJourneys[0] && (
-                <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+                <div className="mt-5 grid grid-cols-3 gap-2">
                   <StatTile
                     value={String(activeJourneys[0].streak.current_streak)}
                     label="streak"
+                    accent="orange"
                   />
+
                   <StatTile
                     value={String(activeJourneys[0].streak.longest_streak)}
                     label="best"
+                    accent="violet"
                   />
+
                   <StatTile
                     value={String(activeJourneys[0].streak.active_days)}
                     label="days"
+                    accent="sky"
                   />
                 </div>
               )}
             </div>
 
-            {/* Achievements teaser */}
+            {/* Achievements */}
             <Link
               to="/stride/achievements"
-              className="glass block rounded-xl p-6 hover:shadow-glow transition-shadow"
+              className="group block overflow-hidden rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-accent/20 hover:shadow-md md:p-6"
             >
               <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Trophy size={19} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10">
+                  <Trophy className="h-4 w-4 text-amber-500" />
                 </div>
+
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                     Achievements
                   </p>
-                  <h3 className="mt-1 text-base font-semibold">
+
+                  <h3 className="mt-1 text-sm font-bold tracking-tight">
                     View your badges
                   </h3>
                 </div>
+
+                <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-foreground" />
               </div>
-              <p className="mt-4 text-xs text-muted-foreground">
+
+              <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
                 Earn achievements through consistent progress across your
                 journeys.
               </p>
@@ -301,23 +344,28 @@ function StrideTodayPage() {
           </div>
         </section>
 
-        {/* Closest active journey bar */}
+        {/* ── Closest active journey ──────────────────────────────────── */}
         {focusJourney && (
-          <div className="glass flex items-center justify-between rounded-xl p-5">
-            <div>
-              <p className="text-xs text-muted-foreground">
+          <div className="flex items-center justify-between gap-4 overflow-hidden rounded-xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur-sm md:p-5">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
                 Closest active journey
               </p>
-              <p className="mt-1 text-sm">
-                {focusJourney.journey.name} · {focusJourney.progress.percentage}
-                % · {formatValue(focusJourney.progress.remaining)}
+
+              <p className="mt-1 truncate text-xs font-semibold">
+                {focusJourney.journey.name} ·{" "}
+                {formatPercentage(focusJourney.progress.percentage)} ·{" "}
+                {formatValue(focusJourney.progress.remaining)}
                 {focusJourney.journey.unit
                   ? ` ${focusJourney.journey.unit}`
                   : ""}{" "}
                 left
               </p>
             </div>
-            <Activity size={18} className="text-primary" />
+
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
+              <Activity className="h-3.5 w-3.5 text-emerald-500" />
+            </span>
           </div>
         )}
       </div>
@@ -327,71 +375,124 @@ function StrideTodayPage() {
   );
 }
 
-function MilestonePath({ journeyId }: { journeyId: number | undefined }) {
+function MilestonePath({
+  journeyId,
+}: {
+  journeyId: number | undefined;
+}) {
   const { data: milestones, isLoading } = useJourneyMilestones(journeyId);
 
   return (
-    <div className="glass rounded-xl p-6">
-      <div className="flex items-center justify-between">
+    <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-sm md:p-6">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
             Up next
           </p>
-          <h2 className="mt-1 text-2xl font-bold tracking-tight">
+
+          <h2 className="mt-1 text-xl font-bold tracking-tight md:text-2xl">
             Milestone path
           </h2>
         </div>
-        <Milestone className="text-primary" size={20} />
+
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10">
+          <Milestone className="h-4 w-4 text-violet-500" />
+        </span>
       </div>
 
       {isLoading ? (
         <div className="mt-7 space-y-4">
-          {[1, 2, 3].map((k) => (
-            <Skeleton key={k} className="h-7 w-full" />
+          {[1, 2, 3].map((key) => (
+            <Skeleton key={key} className="h-7 w-full rounded-lg" />
           ))}
         </div>
       ) : !journeyId ? (
-        <p className="mt-7 text-sm text-muted-foreground">
+        <div className="mt-7 rounded-lg border border-border/60 bg-background/20 p-4 text-xs text-muted-foreground">
           No active journey selected.
-        </p>
+        </div>
       ) : milestones && milestones.length > 0 ? (
         <div className="mt-7 space-y-0">
-          {milestones.map((m, i, arr) => (
-            <div className="flex gap-4" key={m.id}>
+          {milestones.map((milestone, index, items) => (
+            <div className="flex gap-3.5" key={milestone.id}>
               <div className="flex flex-col items-center">
                 <div
-                  className={`flex size-7 items-center justify-center rounded-full border text-xs ${
-                    m.is_completed
-                      ? "border-primary/40 bg-primary/10 text-primary"
-                      : "border-border bg-card text-muted-foreground"
+                  className={`flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-bold transition-colors ${
+                    milestone.is_completed
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                      : "border-border/70 bg-secondary/70 text-muted-foreground"
                   }`}
                 >
-                  {m.is_completed ? <Check size={13} /> : i + 1}
+                  {milestone.is_completed ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    index + 1
+                  )}
                 </div>
-                {i < arr.length - 1 && (
+
+                {index < items.length - 1 && (
                   <div
-                    className={`h-9 w-px ${m.is_completed ? "bg-primary/35" : "bg-border"}`}
+                    className={`h-9 w-px ${
+                      milestone.is_completed
+                        ? "bg-emerald-500/30"
+                        : "bg-border/70"
+                    }`}
                   />
                 )}
               </div>
-              <div className="pt-1 text-sm">{m.name}</div>
+
+              <div
+                className={`pt-1 text-xs ${
+                  milestone.is_completed
+                    ? "font-semibold text-foreground"
+                    : "font-medium text-muted-foreground"
+                }`}
+              >
+                {milestone.name}
+              </div>
             </div>
           ))}
         </div>
       ) : (
-        <p className="mt-7 text-sm text-muted-foreground">
+        <div className="mt-7 rounded-lg border border-border/60 bg-background/20 p-4 text-xs text-muted-foreground">
           No milestones set for this journey.
-        </p>
+        </div>
       )}
     </div>
   );
 }
 
-function StatTile({ value, label }: { value: string; label: string }) {
+function StatTile({
+  value,
+  label,
+  accent,
+}: {
+  value: string;
+  label: string;
+  accent: "orange" | "violet" | "sky";
+}) {
+  const accentClasses = {
+    orange: "border-orange-500/20 bg-orange-500/5",
+    violet: "border-violet-500/20 bg-violet-500/5",
+    sky: "border-sky-500/20 bg-sky-500/5",
+  };
+
+  const valueClasses = {
+    orange: "text-orange-500",
+    violet: "text-violet-500",
+    sky: "text-sky-500",
+  };
+
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-3">
-      <div className="text-base font-bold">{value}</div>
-      <div className="mt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+    <div
+      className={`rounded-lg border p-3 text-center ${accentClasses[accent]}`}
+    >
+      <div
+        className={`text-base font-bold tracking-tight ${valueClasses[accent]}`}
+      >
+        {value}
+      </div>
+
+      <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </div>
     </div>
