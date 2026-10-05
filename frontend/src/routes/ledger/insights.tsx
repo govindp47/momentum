@@ -239,31 +239,38 @@ function InsightsPage() {
           className="grid grid-cols-2 gap-3 md:grid-cols-4"
           aria-label="Key metrics"
         >
-          {metrics.map(({ label, value, note, icon: Icon, iconClass, iconBgClass }, index) => (
-            <div
-              key={label}
-              className="animate-fade-up rounded-xl border border-border/70 bg-card/80 p-4 opacity-0 shadow-sm backdrop-blur-sm [animation-fill-mode:forwards] md:p-5"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <div className="mb-3 flex items-start justify-between gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                  {label}
+          {metrics.map(
+            (
+              { label, value, note, icon: Icon, iconClass, iconBgClass },
+              index,
+            ) => (
+              <div
+                key={label}
+                className="animate-fade-up rounded-xl border border-border/70 bg-card/80 p-4 opacity-0 shadow-sm backdrop-blur-sm [animation-fill-mode:forwards] md:p-5"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                    {label}
+                  </p>
+
+                  <div
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${iconBgClass}`}
+                  >
+                    <Icon className={`h-3.5 w-3.5 ${iconClass}`} />
+                  </div>
+                </div>
+
+                <p className="text-2xl font-bold tracking-tight md:text-3xl">
+                  {value}
                 </p>
 
-                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${iconBgClass}`}>
-                  <Icon className={`h-3.5 w-3.5 ${iconClass}`} />
-                </div>
+                <p className="mt-1 text-[10px] font-medium text-muted-foreground md:text-[11px]">
+                  {note}
+                </p>
               </div>
-
-              <p className="text-2xl font-bold tracking-tight md:text-3xl">
-                {value}
-              </p>
-
-              <p className="mt-1 text-[10px] font-medium text-muted-foreground md:text-[11px]">
-                {note}
-              </p>
-            </div>
-          ))}
+            ),
+          )}
         </section>
 
         {/* ── Chart + time windows ────────────────────────────────────── */}
@@ -318,10 +325,7 @@ function InsightsPage() {
 
                 <div className="absolute inset-y-0 left-8 right-0 flex flex-col justify-between pb-5">
                   {[100, 75, 50, 25, 0].map((value) => (
-                    <div
-                      key={value}
-                      className="border-t border-border/50"
-                    />
+                    <div key={value} className="border-t border-border/50" />
                   ))}
                 </div>
 
@@ -353,9 +357,7 @@ function InsightsPage() {
 
           {/* Time windows */}
           <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur-sm md:p-5">
-            <h3 className="text-sm font-bold tracking-tight">
-              Time windows
-            </h3>
+            <h3 className="text-sm font-bold tracking-tight">Time windows</h3>
 
             <p className="mt-1 text-[11px] font-medium text-muted-foreground">
               Completion rate by period
@@ -455,8 +457,7 @@ function InsightsPage() {
               <p className="text-sm font-semibold">No data yet</p>
 
               <p className="mt-1 text-xs text-muted-foreground">
-                Start recording your commitments to see per-commitment
-                insights.
+                Start recording your commitments to see per-commitment insights.
               </p>
             </div>
           ) : (
@@ -499,16 +500,14 @@ function InsightsPage() {
 
                     <Rate
                       label="Completion"
-                      value={
-                        ts.completion_rate !== null ? completionPct : null
-                      }
+                      value={ts.completion_rate !== null ? completionPct : null}
                       color="bg-primary"
                     />
 
                     <Rate
                       label="Coverage"
                       value={coveragePct}
-                      color="bg-foreground/60"
+                      color="bg-secondary-accent"
                     />
 
                     <span

@@ -57,10 +57,12 @@ function StrideInsightsPage() {
 
   const focusJourneyId = activeJourneys[0]?.journey.id;
 
-  const { data: focusStats, isLoading: focusStatsLoading } =
-    useJourneyStats(focusJourneyId ?? 0, {
+  const { data: focusStats, isLoading: focusStatsLoading } = useJourneyStats(
+    focusJourneyId ?? 0,
+    {
       range,
-    });
+    },
+  );
 
   const totalStreak = activeJourneys[0]?.streak.current_streak ?? 0;
   const totalActiveDays = activeJourneys[0]?.streak.active_days ?? 0;
@@ -88,16 +90,20 @@ function StrideInsightsPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1 overflow-x-auto rounded-xl border border-border/70 bg-card/80 p-1 shadow-sm backdrop-blur-sm">
-            {RANGE_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                size="sm"
-                variant={range === option.value ? "secondary" : "ghost"}
-                onClick={() => setRange(option.value)}
-                className="h-7 rounded-lg px-2.5 text-[10px] font-semibold"
+            {RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setRange(opt.value)}
+                aria-pressed={range === opt.value}
+                className={`h-8 rounded-lg px-3 text-xs font-medium transition-colors ${
+                  range === opt.value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                }`}
               >
-                {option.label}
-              </Button>
+                {opt.label}
+              </button>
             ))}
           </div>
         </section>
@@ -396,9 +402,7 @@ function StatCard({
         </span>
       </div>
 
-      <div className={`mt-4 text-2xl font-bold tracking-tight ${iconClass}`}>
-        {value}
-      </div>
+      <div className="mt-4 text-2xl font-bold tracking-tight">{value}</div>
     </div>
   );
 }
@@ -414,35 +418,30 @@ function JourneyComparisonCard({
 }) {
   const accents = [
     {
-      value: "text-emerald-500",
       bg: "bg-emerald-500/10",
       border: "border-emerald-500/20",
-      bar: "bg-emerald-500",
+      bar: "bg-emerald-500/80",
     },
     {
-      value: "text-sky-500",
       bg: "bg-sky-500/10",
       border: "border-sky-500/20",
-      bar: "bg-sky-500",
+      bar: "bg-sky-500/80",
     },
     {
-      value: "text-violet-500",
       bg: "bg-violet-500/10",
       border: "border-violet-500/20",
-      bar: "bg-violet-500",
+      bar: "bg-violet-500/80",
     },
     {
-      value: "text-orange-500",
       bg: "bg-orange-500/10",
       border: "border-orange-500/20",
-      bar: "bg-orange-500",
+      bar: "bg-orange-500/80",
     },
   ];
 
   function getJourneyAccent(index: number) {
     return (
       accents[index % accents.length] ?? {
-        value: "text-emerald-500",
         bg: "bg-emerald-500/10",
         border: "border-emerald-500/20",
         bar: "bg-emerald-500",
@@ -461,13 +460,11 @@ function JourneyComparisonCard({
           className={`h-2 w-2 shrink-0 rounded-full ${accent.bar}`}
           aria-hidden="true"
         />
-        <div className="min-w-0 truncate text-[11px] font-semibold">
-          {name}
-        </div>
+        <div className="min-w-0 truncate text-[11px] font-semibold">{name}</div>
       </div>
 
-      <div className={`mt-4 text-2xl font-bold tracking-tight ${accent.value}`}>
-        {formatPercentage(percentage)}%
+      <div className="mt-4 text-2xl font-bold tracking-tight">
+        {formatPercentage(percentage)}
       </div>
 
       <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
@@ -476,7 +473,7 @@ function JourneyComparisonCard({
 
       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-secondary">
         <div
-          className={`h-full rounded-full transition-all ${accent.bar}`}
+          className={`h-full rounded-full transition-all bg-primary/90`}
           style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
         />
       </div>

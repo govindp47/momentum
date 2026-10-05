@@ -126,10 +126,7 @@ function StrideHistoryPage() {
         <div className="flex justify-end">
           <div className="flex w-full items-center gap-2 rounded-xl border border-border/70 bg-card/80 p-1.5 shadow-sm backdrop-blur-sm sm:w-auto">
             <HistoryIcon className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <Select
-              value={filterJourneyId}
-              onValueChange={setFilterJourneyId}
-            >
+            <Select value={filterJourneyId} onValueChange={setFilterJourneyId}>
               <SelectTrigger
                 className="h-8 w-full border-0 bg-transparent px-2 text-xs font-medium shadow-none focus:ring-0 sm:w-48"
                 id="history-filter"
@@ -308,7 +305,7 @@ function EventList({
             )}
 
             <div className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border/70 bg-card/80 p-3.5 shadow-sm backdrop-blur-sm transition-colors hover:bg-card sm:gap-4 sm:p-4">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10 text-violet-500">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
                 <Icon className="h-4 w-4" />
               </div>
 
@@ -378,18 +375,7 @@ function useAllProgress(journeyIds: number[]) {
   const q8 = useProgressHistory(ids[8] ?? 0, { limit: 50 });
   const q9 = useProgressHistory(ids[9] ?? 0, { limit: 50 });
 
-  const queries = [
-    q0,
-    q1,
-    q2,
-    q3,
-    q4,
-    q5,
-    q6,
-    q7,
-    q8,
-    q9,
-  ].slice(0, ids.length);
+  const queries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9].slice(0, ids.length);
 
   const isLoading = queries.some((query) => query.isLoading);
 
@@ -397,8 +383,7 @@ function useAllProgress(journeyIds: number[]) {
     .flatMap((query) => query.data ?? [])
     .sort(
       (a, b) =>
-        new Date(b.occurred_at).getTime() -
-        new Date(a.occurred_at).getTime(),
+        new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
     );
 
   return { data: merged, isLoading };

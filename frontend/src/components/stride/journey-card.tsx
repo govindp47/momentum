@@ -220,6 +220,7 @@ export function JourneyCardWithProgress({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function formatValue(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }

@@ -144,8 +144,8 @@ function JourneyDetailPage() {
       <AppShell subApp="stride">
         <div className="mx-auto w-full max-w-5xl animate-fade-up pb-12">
           <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-10 text-center shadow-sm backdrop-blur-sm">
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-sky-500/20 bg-sky-500/10">
-              <Target className="h-4 w-4 text-sky-500" />
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-status-no/20 bg-status-no/10">
+              <Target className="h-4 w-4 text-status-no" />
             </div>
             <h1 className="mt-4 text-lg font-bold tracking-tight">
               Journey not found
@@ -221,14 +221,11 @@ function JourneyDetailPage() {
     : null;
 
   const formattedStartDate = journey.start_date
-    ? new Date(journey.start_date + "T00:00:00").toLocaleDateString(
-        undefined,
-        {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        },
-      )
+    ? new Date(journey.start_date + "T00:00:00").toLocaleDateString(undefined, {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
     : "—";
 
   return (
@@ -236,9 +233,9 @@ function JourneyDetailPage() {
       <div className="mx-auto w-full max-w-5xl animate-fade-up space-y-7 pb-12 md:space-y-8">
         <Link
           to="/stride/journeys"
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[14px] font-semibold text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
+          <ArrowLeft className="h-5 w-5" />
           All journeys
         </Link>
 
@@ -405,12 +402,14 @@ function JourneyDetailPage() {
                   className="mt-4 h-1.5 bg-secondary"
                 />
 
-                <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
+                <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
                   {formatValue(
                     Math.max(0, journey.target_value - currentValue),
                   )}
                   {journey.unit ? ` ${journey.unit}` : ""} remaining
-                  {formattedTargetDate ? ` · target ${formattedTargetDate}` : ""}
+                  {formattedTargetDate
+                    ? ` · target ${formattedTargetDate}`
+                    : ""}
                 </p>
 
                 {journey.accepts_progress && (
@@ -507,7 +506,7 @@ function JourneyDetailPage() {
                 ))}
               </div>
             ) : milestones && milestones.length > 0 ? (
-              <div className="mt-7 space-y-0">
+              <div className="mt-7 space-y-2">
                 {milestones.map((m, i) => (
                   <div key={m.id} className="flex gap-3.5">
                     <div className="flex flex-col items-center">
@@ -524,7 +523,7 @@ function JourneyDetailPage() {
                         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
                           m.is_completed
                             ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
-                            : "border-border/70 bg-secondary/70 text-muted-foreground hover:border-violet-500/40 hover:bg-violet-500/5"
+                            : "border-border/70 bg-secondary/70 text-muted-foreground hover:border-primary/40 hover:bg-primary/5"
                         }`}
                       >
                         {m.is_completed ? (
@@ -545,9 +544,9 @@ function JourneyDetailPage() {
                       )}
                     </div>
 
-                    <div className="min-w-0 pt-1">
+                    <div className="min-w-0">
                       <div
-                        className={`text-xs ${
+                        className={`text-[14px] ${
                           m.is_completed
                             ? "font-semibold text-foreground"
                             : "font-medium text-muted-foreground"
@@ -557,7 +556,7 @@ function JourneyDetailPage() {
                       </div>
 
                       {m.description && (
-                        <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                        <div className="text-[11px] leading-relaxed text-muted-foreground">
                           {m.description}
                         </div>
                       )}
@@ -600,18 +599,18 @@ function JourneyDetailPage() {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-semibold">
+                      <div className="text-[13px] font-semibold">
                         +{formatValue(e.value ?? 0)}
                         {journey.unit ? ` ${journey.unit}` : ""}
                       </div>
 
-                      <div className="mt-1 truncate text-[10px] text-muted-foreground">
+                      <div className="truncate text-[11px] text-muted-foreground">
                         {e.note ?? "Progress update"}
                       </div>
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1">
-                      <time className="text-[9px] text-muted-foreground">
+                      <time className="text-[11px] text-muted-foreground">
                         {new Date(e.occurred_at).toLocaleDateString(undefined, {
                           month: "short",
                           day: "numeric",
@@ -648,11 +647,10 @@ function JourneyDetailPage() {
           </div>
         </section>
 
-        <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card/50 px-4 py-3 text-[10px] text-muted-foreground">
-          <Target className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+        <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card/50 px-4 py-3 text-[12px] text-muted-foreground">
+          <Target className="h-4 w-4 shrink-0 text-violet-500" />
           <span>
-            Keep the journey visible, make the next step small, and keep
-            moving.
+            Keep the journey visible, make the next step small, and keep moving.
           </span>
         </div>
       </div>
@@ -691,7 +689,7 @@ function JourneyDetailPage() {
               <Button
                 variant="outline"
                 onClick={() => setEditOpen(false)}
-                className="h-8 rounded-lg text-[10px]"
+                className="h-8 rounded-lg text-[11px]"
               >
                 Cancel
               </Button>
@@ -699,7 +697,7 @@ function JourneyDetailPage() {
               <Button
                 onClick={saveEdit}
                 disabled={updateJourney.isPending}
-                className="h-8 rounded-lg text-[10px]"
+                className="h-8 rounded-lg text-[11px]"
               >
                 {updateJourney.isPending ? "Saving…" : "Save changes"}
               </Button>
@@ -747,7 +745,7 @@ function DetailStatCard({
         </div>
       </div>
 
-      <p className="mt-4 text-[10px] leading-relaxed text-muted-foreground">
+      <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
         {note}
       </p>
     </div>

@@ -142,7 +142,7 @@ function StrideTodayPage() {
                     <div
                       className={`w-5 rounded-t-md transition-colors md:w-6 ${
                         index === 6
-                          ? "bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.18)]"
+                          ? "bg-secondary-accent shadow-[0_0_12px_color-mix(in_oklch,var(--secondary-accent)_18%,transparent)]"
                           : "bg-primary/20"
                       }`}
                       style={{ height }}
@@ -375,11 +375,7 @@ function StrideTodayPage() {
   );
 }
 
-function MilestonePath({
-  journeyId,
-}: {
-  journeyId: number | undefined;
-}) {
+function MilestonePath({ journeyId }: { journeyId: number | undefined }) {
   const { data: milestones, isLoading } = useJourneyMilestones(journeyId);
 
   return (

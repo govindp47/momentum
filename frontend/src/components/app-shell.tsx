@@ -69,7 +69,7 @@ function ThemeToggleButton() {
         theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
       }
       onClick={toggleTheme}
-      className="h-10 w-10 rounded-full bg-primary/10 text-primary ring-1 ring-primary/15 transition-colors hover:bg-primary/15 hover:text-primary"
+      className="h-10 w-10 rounded-full bg-secondary-accent/10 text-secondary-accent ring-1 ring-secondary-accent/15 transition-colors hover:bg-secondary-accent/15 hover:text-secondary-accent"
     >
       {theme === "dark" ? (
         <Sun className="h-4 w-4" />
@@ -97,9 +97,7 @@ function SubAppHeader({
   const subAppLabel = subApp === "ledger" ? "Ledger" : "Stride";
 
   const subAppDescription =
-    subApp === "ledger"
-      ? "Your daily commitments"
-      : "Your long-term progress";
+    subApp === "ledger" ? "Your daily commitments" : "Your long-term progress";
 
   const isActive = (to: string) => {
     if (to === "/stride/journeys") {
@@ -121,11 +119,7 @@ function SubAppHeader({
           <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20 shadow-sm">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
 
-            <SubAppIcon
-              size={21}
-              strokeWidth={1.9}
-              className="relative z-10"
-            />
+            <SubAppIcon size={21} strokeWidth={1.9} className="relative z-10" />
 
             <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_6px_color-mix(in_oklch,var(--primary)_60%,transparent)]" />
           </div>
@@ -137,7 +131,7 @@ function SubAppHeader({
                 {subAppLabel}
               </h1>
 
-              <span className="hidden rounded-full border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-primary lg:inline-flex">
+              <span className="hidden rounded-full border border-secondary-accent/20 bg-secondary-accent/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-secondary-accent lg:inline-flex">
                 App
               </span>
             </div>
@@ -208,11 +202,7 @@ function DashboardHeader({ pageActions }: { pageActions?: ReactNode }) {
           <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20 shadow-sm">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
 
-            <Sparkles
-              size={21}
-              strokeWidth={1.9}
-              className="relative z-10"
-            />
+            <Sparkles size={21} strokeWidth={1.9} className="relative z-10" />
 
             <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_6px_color-mix(in_oklch,var(--primary)_60%,transparent)]" />
           </div>
@@ -224,7 +214,7 @@ function DashboardHeader({ pageActions }: { pageActions?: ReactNode }) {
                 Momentum
               </h1>
 
-              <span className="hidden rounded-full border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-primary lg:inline-flex">
+              <span className="hidden rounded-full border border-secondary-accent/20 bg-secondary-accent/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-secondary-accent lg:inline-flex">
                 Core
               </span>
             </div>
@@ -257,7 +247,7 @@ function AppShellInner({
   pageActions?: ReactNode;
 }) {
   const [mobileMenu, setMobileMenu] = useState(false);
-  
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") {
       return false;
@@ -300,15 +290,15 @@ function AppShellInner({
             <Button
               variant="ghost"
               size="icon"
-              className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-sm transition-all duration-200 hover:border-primary/35 hover:bg-primary/15 hover:shadow-[0_0_20px_color-mix(in_oklch,var(--primary)_12%,transparent)]"
+              className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-secondary-accent/20 bg-secondary-accent/10 text-secondary-accent shadow-sm transition-all duration-200 hover:border-secondary-accent/35 hover:bg-secondary-accent/15 hover:shadow-[0_0_20px_color-mix(in_oklch,var(--secondary-accent)_12%,transparent)]"
               aria-label="Expand sidebar"
               onClick={() => setSidebarCollapsed(false)}
             >
               <Sparkles className="h-[18px] w-[18px] transition-all duration-200 group-hover:scale-0 group-hover:opacity-0" />
 
-              <PanelLeftOpen className="absolute h-[17px] w-[17px] scale-75 text-primary opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100" />
+              <PanelLeftOpen className="absolute h-[17px] w-[17px] scale-75 text-secondary-accent opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100" />
 
-              <span className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/15 via-transparent to-transparent" />
+              <span className="absolute inset-0 rounded-xl bg-gradient-to-br from-secondary-accent/15 via-transparent to-transparent" />
             </Button>
           ) : (
             <>
@@ -316,16 +306,16 @@ function AppShellInner({
                 <Link
                   to="/"
                   aria-label="Go to Momentum dashboard"
-                  className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-primary/20 bg-primary/10 text-primary shadow-sm transition-all duration-200 hover:border-primary/35 hover:bg-primary/15 hover:shadow-[0_0_20px_color-mix(in_oklch,var(--primary)_15%,transparent)]"
+                  className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-secondary-accent/20 bg-secondary-accent/10 text-secondary-accent shadow-sm transition-all duration-200 hover:border-secondary-accent/35 hover:bg-secondary-accent/15 hover:shadow-[0_0_20px_color-mix(in_oklch,var(--secondary-accent)_15%,transparent)]"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-secondary-accent/20 via-secondary-accent/5 to-transparent" />
 
                   <Sparkles
                     className="relative z-10 h-[17px] w-[17px] transition-transform duration-200 group-hover:scale-105"
                     strokeWidth={1.9}
                   />
 
-                  <span className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_7px_color-mix(in_oklch,var(--primary)_65%,transparent)]" />
+                  <span className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-secondary-accent shadow-[0_0_7px_color-mix(in_oklch,var(--secondary-accent)_65%,transparent)]" />
                 </Link>
 
                 <div className="min-w-0">
@@ -343,7 +333,7 @@ function AppShellInner({
               <Button
                 variant="ghost"
                 size="icon"
-                className="ml-2 h-9 w-9 shrink-0 rounded-lg border border-transparent text-muted-foreground transition-all duration-200 hover:border-primary/15 hover:bg-primary/10 hover:text-primary"
+                className="ml-2 h-9 w-9 shrink-0 rounded-lg border border-transparent text-muted-foreground transition-all duration-200 hover:border-secondary-accent/15 hover:bg-secondary-accent/10 hover:text-secondary-accent"
                 aria-label="Collapse sidebar"
                 onClick={() => setSidebarCollapsed(true)}
               >
@@ -389,27 +379,25 @@ function AppShellInner({
                   aria-label={sidebarCollapsed ? label : undefined}
                   aria-current={active ? "page" : undefined}
                   className={`group relative flex h-10 items-center overflow-hidden rounded-lg border transition-all duration-200 ${
-                    sidebarCollapsed
-                      ? "justify-center"
-                      : "gap-2.5 px-2.5"
+                    sidebarCollapsed ? "justify-center" : "gap-2.5 px-2.5"
                   } ${
                     active
-                      ? "border-primary/20 bg-primary/10 text-primary shadow-[0_3px_16px_color-mix(in_oklch,var(--primary)_8%,transparent)]"
-                      : "border-transparent text-sidebar-foreground/75 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      ? "border-secondary-accent/20 bg-secondary-accent/10 text-secondary-accent shadow-[0_3px_16px_color-mix(in_oklch,var(--secondary-accent)_8%,transparent)]"
+                      : "border-transparent hover:border-secondary-accent/15 hover:bg-secondary-accent/5 hover:text-secondary-accent-foreground"
                   }`}
                 >
                   {active && (
                     <>
-                      <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary shadow-[0_0_8px_color-mix(in_oklch,var(--primary)_70%,transparent)]" />
-                      <span className="absolute inset-0 bg-gradient-to-r from-primary/7 via-primary/2 to-transparent" />
+                      <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-secondary-accent shadow-[0_0_8px_color-mix(in_oklch,var(--secondary-accent)_70%,transparent)]" />
+                      <span className="absolute inset-0 bg-gradient-to-r from-secondary-accent/7 via-secondary-accent/2 to-transparent" />
                     </>
                   )}
 
                   <span
                     className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-all duration-200 ${
                       active
-                        ? "border-primary/25 bg-primary/10 text-primary"
-                        : "border-sidebar-border bg-sidebar-accent/60 text-muted-foreground group-hover:border-primary/15 group-hover:bg-primary/5 group-hover:text-primary"
+                        ? "border-secondary-accent/25 bg-secondary-accent/10 text-secondary-accent"
+                        : "border-sidebar-border bg-sidebar-accent/60 text-muted-foreground group-hover:border-secondary-accent/15 group-hover:bg-secondary-accent/5 group-hover:text-secondary-accent"
                     }`}
                   >
                     <Icon
@@ -429,7 +417,7 @@ function AppShellInner({
                       </span>
 
                       {active && (
-                        <span className="ml-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary shadow-[0_0_6px_color-mix(in_oklch,var(--primary)_70%,transparent)]" />
+                        <span className="ml-2 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary-accent shadow-[0_0_6px_color-mix(in_oklch,var(--secondary-accent)_70%,transparent)]" />
                       )}
                     </span>
                   )}
@@ -441,24 +429,23 @@ function AppShellInner({
 
         <div className="border-t border-sidebar-border p-2.5">
           <div
-            className={`group relative overflow-hidden rounded-lg border border-sidebar-border bg-sidebar-accent/30 transition-all duration-200 hover:border-primary/15 hover:bg-primary/5 ${
+            className={`group relative overflow-hidden rounded-lg border border-sidebar-border bg-sidebar-accent/30 transition-all duration-200 hover:border-secondary-accent/15 hover:bg-secondary-accent/5 ${
               sidebarCollapsed
                 ? "flex h-9 items-center justify-center"
                 : "px-2 py-1.5"
             }`}
             title={sidebarCollapsed ? "Govind Patidar" : undefined}
           >
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-secondary-accent/5 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
             <div
               className={`relative z-10 flex items-center ${
                 sidebarCollapsed ? "justify-center" : "gap-2.5"
               }`}
             >
-              <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-[9px] font-bold tracking-wide text-primary shadow-sm">
+              <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-secondary-accent/20 bg-secondary-accent/10 text-[9px] font-bold tracking-wide text-secondary-accent shadow-sm">
                 GP
-
-                <span className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full border border-sidebar bg-primary" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full border border-sidebar bg-secondary-accent" />
               </div>
 
               {!sidebarCollapsed && (
@@ -477,7 +464,7 @@ function AppShellInner({
                     variant="ghost"
                     size="icon"
                     aria-label="More options"
-                    className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                    className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:bg-secondary-accent/10 hover:text-secondary-accent"
                   >
                     <MoreHorizontal className="h-3.5 w-3.5" />
                   </Button>
@@ -510,7 +497,7 @@ function AppShellInner({
             size="icon"
             aria-label="Open menu"
             onClick={() => setMobileMenu(true)}
-            className="h-10 w-10 rounded-xl border border-border/70 bg-background/60 text-muted-foreground shadow-sm hover:bg-primary/10 hover:text-primary"
+            className="h-10 w-10 rounded-xl border border-border/70 bg-background/60 text-muted-foreground shadow-sm hover:bg-secondary-accent/10 hover:text-secondary-accent"
           >
             <Menu className="h-[18px] w-[18px]" />
           </Button>
@@ -583,7 +570,9 @@ export function PageIntro({
     <div className="animate-fade-up flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         {eyebrow && (
-          <p className="mb-2 text-sm font-medium text-primary">{eyebrow}</p>
+          <p className="mb-2 text-sm font-medium text-secondary-accent">
+            {eyebrow}
+          </p>
         )}
         <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
           {title}

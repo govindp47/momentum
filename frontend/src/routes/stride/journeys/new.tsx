@@ -156,12 +156,12 @@ function NewJourneyPage() {
           </div>
 
           <div className="mb-4 flex items-center justify-between px-1">
-            <span className="text-[10px] font-semibold text-muted-foreground">
+            <span className="text-[12px] font-semibold text-muted-foreground">
               {step === 1 && "Define the destination"}
               {step === 2 && "Choose how to measure it"}
               {step === 3 && "Shape the path"}
             </span>
-            <span className="text-[10px] font-medium text-muted-foreground">
+            <span className="text-[12px] font-medium text-muted-foreground">
               {step}/3
             </span>
           </div>
@@ -187,7 +187,7 @@ function NewJourneyPage() {
 
                     <label
                       htmlFor="journey-name"
-                      className="mb-2 block text-[10px] font-semibold text-muted-foreground"
+                      className="mb-2 block text-[11px] font-semibold text-muted-foreground"
                     >
                       Journey name
                     </label>
@@ -199,7 +199,7 @@ function NewJourneyPage() {
                       placeholder="Run 500 km"
                       className="h-10 rounded-lg border-border/70 bg-background/40 text-sm"
                     />
-                    <p className="mt-1.5 text-[10px] text-muted-foreground">
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
                       Keep it clear and motivating.
                     </p>
                   </div>
@@ -207,7 +207,7 @@ function NewJourneyPage() {
                   <div>
                     <label
                       htmlFor="journey-description"
-                      className="mb-2 block text-[10px] font-semibold text-muted-foreground"
+                      className="mb-2 block text-[11px] font-semibold text-muted-foreground"
                     >
                       Why this matters
                     </label>
@@ -239,7 +239,7 @@ function NewJourneyPage() {
                       </div>
                     </div>
 
-                    <label className="mb-2 block text-[10px] font-semibold text-muted-foreground">
+                    <label className="mb-2 block text-[11px] font-semibold text-muted-foreground">
                       Tracking method
                     </label>
 
@@ -247,7 +247,7 @@ function NewJourneyPage() {
                       value={method}
                       onValueChange={(v) => setMethod(v as TrackingMethod)}
                     >
-                      <SelectTrigger className="h-10 rounded-lg border-border/70 bg-background/40 text-xs">
+                      <SelectTrigger className="h-10 rounded-lg border-border/70 bg-background/40 text-s">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/70 bg-card">
@@ -255,7 +255,7 @@ function NewJourneyPage() {
                           <SelectItem
                             key={opt.value}
                             value={opt.value}
-                            className="rounded-lg text-xs"
+                            className="rounded-lg text-s"
                           >
                             {opt.label}
                           </SelectItem>
@@ -263,7 +263,7 @@ function NewJourneyPage() {
                       </SelectContent>
                     </Select>
 
-                    <p className="mt-2 rounded-lg border border-border/60 bg-background/20 px-3 py-2 text-[10px] leading-relaxed text-muted-foreground">
+                    <p className="mt-2 rounded-lg border border-border/60 bg-background/20 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
                       {
                         TRACKING_OPTIONS.find((o) => o.value === method)
                           ?.description
@@ -275,7 +275,7 @@ function NewJourneyPage() {
                     <div>
                       <label
                         htmlFor="journey-target"
-                        className="mb-2 block text-[10px] font-semibold text-muted-foreground"
+                        className="mb-2 block text-[11px] font-semibold text-muted-foreground"
                       >
                         Target
                       </label>
@@ -293,7 +293,7 @@ function NewJourneyPage() {
                       <div>
                         <label
                           htmlFor="journey-unit"
-                          className="mb-2 block text-[10px] font-semibold text-muted-foreground"
+                          className="mb-2 block text-[11px] font-semibold text-muted-foreground"
                         >
                           Unit
                         </label>
@@ -311,7 +311,7 @@ function NewJourneyPage() {
                   <div>
                     <label
                       htmlFor="journey-target-date"
-                      className="mb-2 block text-[10px] font-semibold text-muted-foreground"
+                      className="mb-2 block text-[11px] font-semibold text-muted-foreground"
                     >
                       Target date
                       <span className="ml-1 font-normal text-muted-foreground">
@@ -343,7 +343,7 @@ function NewJourneyPage() {
                         <h2 className="mt-0.5 text-base font-bold tracking-tight">
                           Milestone path
                         </h2>
-                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                           Break the journey into visible markers. Optional.
                         </p>
                       </div>
@@ -353,9 +353,9 @@ function NewJourneyPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setMilestones([...milestones, ""])}
-                      className="h-8 shrink-0 rounded-lg text-[10px]"
+                      className="h-8 shrink-0 rounded-lg text-[12px]"
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-4 w-4" />
                       Add
                     </Button>
                   </div>
@@ -414,15 +414,13 @@ function NewJourneyPage() {
 
                   <div className="mt-6 overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
-                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
+                        <Check className="h-5 w-5 text-emerald-500" />
                       </div>
 
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold">
-                          Ready to begin
-                        </p>
-                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                        <p className="text-s font-semibold">Ready to begin</p>
+                        <p className="text-[12px] leading-relaxed text-muted-foreground">
                           {name || "Your journey"} · {target}
                           {unit ? ` ${unit}` : ""} · target {targetDate}
                         </p>
@@ -438,9 +436,9 @@ function NewJourneyPage() {
                 variant="ghost"
                 disabled={step === 1}
                 onClick={() => setStep(step - 1)}
-                className="h-8 rounded-lg px-2.5 text-[10px]"
+                className="h-8 rounded-lg px-2.5 text-[12px]"
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
+                <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
 
@@ -448,25 +446,25 @@ function NewJourneyPage() {
                 <Button
                   disabled={step === 1 && !canContinue}
                   onClick={() => setStep(step + 1)}
-                  className="h-8 rounded-lg px-3 text-[10px] shadow-sm"
+                  className="h-8 rounded-lg px-3 text-[12px] shadow-sm"
                 >
                   Continue
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
                 <Button
                   onClick={handleSave}
                   disabled={createJourney.isPending}
-                  className="h-8 rounded-lg px-3 text-[10px] shadow-sm"
+                  className="h-8 rounded-lg px-3 text-[12px] shadow-sm"
                 >
                   {createJourney.isPending ? "Creating…" : "Create journey"}
-                  <Check className="h-3.5 w-3.5" />
+                  <Check className="h-4 w-4" />
                 </Button>
               )}
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-1.5 text-[9px] text-muted-foreground">
+          <div className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground">
             <span className="h-1 w-1 rounded-full bg-emerald-500" />
             You can edit your journey anytime
           </div>

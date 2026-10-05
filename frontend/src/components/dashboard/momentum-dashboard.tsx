@@ -221,9 +221,7 @@ function LedgerSummary({ ledger }: { ledger: DashboardLedgerResponse }) {
                 {label}
               </p>
 
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {note}
-              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{note}</p>
             </div>
           );
         })}
@@ -252,7 +250,7 @@ function LedgerSummary({ ledger }: { ledger: DashboardLedgerResponse }) {
               ts.trend === "↑"
                 ? "text-emerald-500"
                 : ts.trend === "↓"
-                  ? "text-red-500"
+                  ? "text-status-no"
                   : "text-muted-foreground";
 
             return (
@@ -280,9 +278,7 @@ function LedgerSummary({ ledger }: { ledger: DashboardLedgerResponse }) {
 
                   <div
                     className="h-1.5 overflow-hidden rounded-full bg-secondary/80"
-                    aria-label={
-                      pct !== null ? `${pct}% completion` : "No data"
-                    }
+                    aria-label={pct !== null ? `${pct}% completion` : "No data"}
                   >
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-500"
@@ -293,9 +289,7 @@ function LedgerSummary({ ledger }: { ledger: DashboardLedgerResponse }) {
 
                 <div className="flex items-center gap-6 sm:min-w-40 sm:justify-end">
                   <div className="text-right">
-                    <p className="text-xs text-muted-foreground">
-                      Completion
-                    </p>
+                    <p className="text-xs text-muted-foreground">Completion</p>
                     <p className="mt-0.5 text-base font-semibold tabular-nums">
                       {fmtRate(ts.completion_rate)}
                     </p>
@@ -346,7 +340,7 @@ function JourneyCard({ item }: { item: DashboardJourneyResponse }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <MapPin className="h-4 w-4" aria-hidden />
             </div>
 
@@ -360,7 +354,7 @@ function JourneyCard({ item }: { item: DashboardJourneyResponse }) {
           )}
         </div>
 
-        <span className="shrink-0 text-xl font-semibold leading-none tabular-nums text-violet-500">
+        <span className="shrink-0 text-xl font-semibold leading-none tabular-nums">
           {pct}%
         </span>
       </div>
@@ -370,7 +364,7 @@ function JourneyCard({ item }: { item: DashboardJourneyResponse }) {
         aria-label={`${pct}% progress`}
       >
         <div
-          className="h-full rounded-full bg-violet-500 transition-all duration-500"
+          className="h-full rounded-full bg-primary transition-all duration-500"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -379,7 +373,7 @@ function JourneyCard({ item }: { item: DashboardJourneyResponse }) {
         <span>{progressLabel}</span>
 
         {streak.current_streak > 0 && (
-          <span className="flex items-center gap-1.5 text-orange-500">
+          <span className="flex items-center gap-1.5 text-secondary-accent">
             <Flame className="h-3.5 w-3.5" aria-hidden />
             {streak.current_streak}d streak
           </span>
@@ -430,7 +424,7 @@ function JourneysSection({
         </div>
       ) : (
         <div className="rounded-xl border border-border/70 bg-card/80 p-9 text-center shadow-sm backdrop-blur-sm">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-500">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Activity className="h-5 w-5" aria-hidden />
           </div>
 
@@ -492,9 +486,7 @@ function TodayActivity({
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      Journey #{journeyId}
-                    </p>
+                    <p className="text-sm font-medium">Journey #{journeyId}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {act.event_count}{" "}
                       {act.event_count === 1 ? "event" : "events"}
@@ -510,9 +502,7 @@ function TodayActivity({
                   )}
 
                   {hasDuration && (
-                    <p className="text-xs text-muted-foreground">
-                      {mins} min
-                    </p>
+                    <p className="text-xs text-muted-foreground">{mins} min</p>
                   )}
                 </div>
               </div>

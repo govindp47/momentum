@@ -134,33 +134,34 @@ function StrideAchievementsPage() {
           description="Small markers of consistency, completion, and progress earned along the way."
           action={
             <div className="flex shrink-0 rounded-xl border border-border/70 bg-card/80 p-1 shadow-sm backdrop-blur-sm">
-              <Button
-                size="sm"
-                variant={tab === "earned" ? "secondary" : "ghost"}
-                className="h-8 rounded-lg px-3 text-xs"
+              <button
+                key="earned"
+                type="button"
                 onClick={() => setTab("earned")}
+                aria-pressed={tab === "earned"}
+                className={`h-8 rounded-lg px-3 text-xs font-medium transition-colors ${
+                  tab === "earned"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                }`}
               >
                 Earned
-                {!isLoading && (
-                  <span className="ml-1.5 text-[10px] text-muted-foreground">
-                    {earnedCount}
-                  </span>
-                )}
-              </Button>
-
-              <Button
-                size="sm"
-                variant={tab === "progress" ? "secondary" : "ghost"}
-                className="h-8 rounded-lg px-3 text-xs"
+                {!isLoading && <span className="ml-1.5">{earnedCount}</span>}
+              </button>
+              <button
+                key="progress"
+                type="button"
                 onClick={() => setTab("progress")}
+                aria-pressed={tab === "progress"}
+                className={`h-8 rounded-lg px-3 text-xs font-medium transition-colors ${
+                  tab === "progress"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                }`}
               >
                 In progress
-                {!isLoading && (
-                  <span className="ml-1.5 text-[10px] text-muted-foreground">
-                    {progressCount}
-                  </span>
-                )}
-              </Button>
+                {!isLoading && <span className="ml-1.5">{progressCount}</span>}
+              </button>
             </div>
           }
         />
@@ -198,13 +199,14 @@ function StrideAchievementsPage() {
                   <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Check className="h-3.5 w-3.5 text-emerald-500" />
                     Earned{" "}
-                    {new Date(
-                      latestEarned.unlocked_at,
-                    ).toLocaleDateString(undefined, {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {new Date(latestEarned.unlocked_at).toLocaleDateString(
+                      undefined,
+                      {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      },
+                    )}
                   </div>
                 )}
               </div>
@@ -277,7 +279,7 @@ function StrideAchievementsPage() {
               className={`mx-auto flex h-11 w-11 items-center justify-center rounded-xl ${
                 tab === "earned"
                   ? "bg-amber-500/10 text-amber-500"
-                  : "bg-violet-500/10 text-violet-500"
+                  : "bg-muted text-primary"
               }`}
             >
               {tab === "earned" ? (
@@ -331,7 +333,7 @@ function StrideAchievementsPage() {
             className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs ${
               selected?.is_unlocked
                 ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400"
-                : "border-violet-500/20 bg-violet-500/5 text-muted-foreground"
+                : "border-border/60 bg-secondary/30 text-muted-foreground"
             }`}
           >
             {selected?.is_unlocked ? (
@@ -350,7 +352,7 @@ function StrideAchievementsPage() {
               </>
             ) : (
               <>
-                <Lock className="h-3.5 w-3.5 text-violet-500" />
+                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
                 Not yet earned — keep going.
               </>
             )}
@@ -358,7 +360,7 @@ function StrideAchievementsPage() {
 
           {selected?.journey_name && (
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-              <Target className="h-3 w-3 text-violet-500" />
+              <Target className="h-3 w-3 text-primary" />
               Journey: {selected.journey_name}
             </div>
           )}
@@ -398,7 +400,6 @@ function AchievementCard({
             })}
           </div>
         )}
-
       </div>
 
       <h2 className="mt-4 line-clamp-1 text-sm font-semibold tracking-tight">
@@ -412,7 +413,7 @@ function AchievementCard({
       <div className="mt-3 flex min-h-4 items-center justify-center gap-2">
         {achievement.journey_name ? (
           <p className="flex min-w-0 items-center gap-1.5 truncate text-[10px] font-medium text-muted-foreground">
-            <Target className="h-3 w-3 shrink-0 text-violet-500" />
+            <Target className="h-3 w-3 shrink-0 text-primary" />
             <span className="truncate">{achievement.journey_name}</span>
           </p>
         ) : null}
@@ -468,7 +469,9 @@ function AchievementBadge({
   return (
     <div
       className={`relative flex shrink-0 items-center justify-center ${dimensions[size]} ${
-        unlocked ? `drop-shadow-xl ${accent.glow} transition-[filter] duration-300` : "opacity-45 grayscale"
+        unlocked
+          ? `drop-shadow-xl ${accent.glow} transition-[filter] duration-300`
+          : "opacity-45 grayscale"
       }`}
       aria-hidden="true"
     >
@@ -571,8 +574,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-white/[0.075]"
               style={{
-                clipPath:
-                  "polygon(30% 7%, 39% 38%, 17% 59%, 4% 38%, 14% 17%)",
+                clipPath: "polygon(30% 7%, 39% 38%, 17% 59%, 4% 38%, 14% 17%)",
               }}
             />
 
@@ -580,8 +582,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-black/[0.075]"
               style={{
-                clipPath:
-                  "polygon(70% 7%, 86% 17%, 96% 38%, 83% 59%, 61% 38%)",
+                clipPath: "polygon(70% 7%, 86% 17%, 96% 38%, 83% 59%, 61% 38%)",
               }}
             />
 
@@ -607,8 +608,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-black/[0.14]"
               style={{
-                clipPath:
-                  "polygon(50% 74%, 61% 98%, 50% 100%, 39% 98%)",
+                clipPath: "polygon(50% 74%, 61% 98%, 50% 100%, 39% 98%)",
               }}
             />
 
@@ -629,8 +629,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-white/[0.035]"
               style={{
-                clipPath:
-                  "polygon(17% 59%, 39% 38%, 43% 60%, 31% 72%)",
+                clipPath: "polygon(17% 59%, 39% 38%, 43% 60%, 31% 72%)",
               }}
             />
 
@@ -638,8 +637,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-black/[0.045]"
               style={{
-                clipPath:
-                  "polygon(83% 59%, 61% 38%, 57% 60%, 69% 72%)",
+                clipPath: "polygon(83% 59%, 61% 38%, 57% 60%, 69% 72%)",
               }}
             />
 
@@ -647,8 +645,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-white/[0.035]"
               style={{
-                clipPath:
-                  "polygon(31% 72%, 43% 60%, 50% 74%, 39% 86%)",
+                clipPath: "polygon(31% 72%, 43% 60%, 50% 74%, 39% 86%)",
               }}
             />
 
@@ -656,8 +653,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-black/[0.045]"
               style={{
-                clipPath:
-                  "polygon(69% 72%, 57% 60%, 50% 74%, 61% 86%)",
+                clipPath: "polygon(69% 72%, 57% 60%, 50% 74%, 61% 86%)",
               }}
             />
 
@@ -687,8 +683,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-white/[0.045]"
               style={{
-                clipPath:
-                  "polygon(39% 38%, 50% 32%, 61% 38%, 50% 74%)",
+                clipPath: "polygon(39% 38%, 50% 32%, 61% 38%, 50% 74%)",
               }}
             />
 
@@ -696,8 +691,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-black/[0.055]"
               style={{
-                clipPath:
-                  "polygon(39% 38%, 50% 32%, 61% 38%, 50% 18%)",
+                clipPath: "polygon(39% 38%, 50% 32%, 61% 38%, 50% 18%)",
               }}
             />
 
@@ -727,8 +721,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-white/[0.035]"
               style={{
-                clipPath:
-                  "polygon(22% 19%, 31% 10%, 39% 38%, 29% 32%)",
+                clipPath: "polygon(22% 19%, 31% 10%, 39% 38%, 29% 32%)",
               }}
             />
 
@@ -736,8 +729,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-black/[0.035]"
               style={{
-                clipPath:
-                  "polygon(78% 19%, 69% 10%, 61% 38%, 71% 32%)",
+                clipPath: "polygon(78% 19%, 69% 10%, 61% 38%, 71% 32%)",
               }}
             />
 
@@ -745,8 +737,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-white/[0.03]"
               style={{
-                clipPath:
-                  "polygon(10% 43%, 17% 59%, 29% 50%, 23% 38%)",
+                clipPath: "polygon(10% 43%, 17% 59%, 29% 50%, 23% 38%)",
               }}
             />
 
@@ -754,8 +745,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-black/[0.03]"
               style={{
-                clipPath:
-                  "polygon(90% 43%, 83% 59%, 71% 50%, 77% 38%)",
+                clipPath: "polygon(90% 43%, 83% 59%, 71% 50%, 77% 38%)",
               }}
             />
 
@@ -763,8 +753,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-white/[0.025]"
               style={{
-                clipPath:
-                  "polygon(22% 76%, 31% 72%, 39% 86%, 30% 84%)",
+                clipPath: "polygon(22% 76%, 31% 72%, 39% 86%, 30% 84%)",
               }}
             />
 
@@ -772,8 +761,7 @@ function AchievementBadge({
             <div
               className="absolute inset-0 bg-black/[0.03]"
               style={{
-                clipPath:
-                  "polygon(78% 76%, 69% 72%, 61% 86%, 70% 84%)",
+                clipPath: "polygon(78% 76%, 69% 72%, 61% 86%, 70% 84%)",
               }}
             />
 

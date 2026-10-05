@@ -19,11 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  iconMap,
-  getTaskIcon,
-  type CommitmentIcon,
-} from "@/lib/lifeledger";
+import { iconMap, getTaskIcon, type CommitmentIcon } from "@/lib/lifeledger";
 import {
   useLedgerAllTasks,
   useCreateTask,
@@ -156,10 +152,7 @@ function CommitmentsPage() {
     });
   };
 
-  const handleSave = (value: {
-    name: string;
-    cutoff_message: string;
-  }) => {
+  const handleSave = (value: { name: string; cutoff_message: string }) => {
     setActionError(null);
 
     if (editing) {
@@ -210,9 +203,7 @@ function CommitmentsPage() {
 
   if (isError) {
     const message =
-      error instanceof ApiError
-        ? error.message
-        : "Failed to load commitments.";
+      error instanceof ApiError ? error.message : "Failed to load commitments.";
 
     return (
       <AppShell subApp="ledger">
@@ -285,14 +276,11 @@ function CommitmentsPage() {
             Active
             <span
               className={`ml-1.5 ${
-                !showArchived
-                  ? "text-primary"
-                  : "text-muted-foreground"
+                !showArchived ? "text-primary" : "text-muted-foreground"
               }`}
             >
               ({activeTasks.length})
             </span>
-
             {!showArchived && (
               <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-primary" />
             )}
@@ -311,14 +299,11 @@ function CommitmentsPage() {
             Archived
             <span
               className={`ml-1.5 ${
-                showArchived
-                  ? "text-primary"
-                  : "text-muted-foreground"
+                showArchived ? "text-primary" : "text-muted-foreground"
               }`}
             >
               ({archivedTasks.length})
             </span>
-
             {showArchived && (
               <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-primary" />
             )}
@@ -334,12 +319,10 @@ function CommitmentsPage() {
               const accent = iconAccent[taskIcon];
 
               const isArchivePending =
-                archiveTask.isPending &&
-                archiveTask.variables === task.name;
+                archiveTask.isPending && archiveTask.variables === task.name;
 
               const isRestorePending =
-                restoreTask.isPending &&
-                restoreTask.variables === task.id;
+                restoreTask.isPending && restoreTask.variables === task.id;
 
               return (
                 <article
@@ -380,7 +363,6 @@ function CommitmentsPage() {
 
                       <p className="mt-2.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
                         <CalendarPlus className="h-3 w-3" />
-
                         Tracking since{" "}
                         {new Date(
                           `${task.created_at.slice(0, 10)}T12:00:00`,
@@ -489,10 +471,7 @@ function CommitmentDialog({
   onOpenChange: (open: boolean) => void;
   task: TaskResponse | null;
   isSaving: boolean;
-  onSave: (value: {
-    name: string;
-    cutoff_message: string;
-  }) => void;
+  onSave: (value: { name: string; cutoff_message: string }) => void;
   errorMessage: string | null;
 }) {
   const [name, setName] = useState("");
@@ -624,11 +603,7 @@ function CommitmentDialog({
               Cancel
             </Button>
 
-            <Button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-lg"
-            >
+            <Button type="submit" disabled={isSaving} className="rounded-lg">
               {isSaving
                 ? "Saving…"
                 : task

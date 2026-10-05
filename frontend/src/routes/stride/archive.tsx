@@ -38,10 +38,10 @@ function StrideArchivePage() {
       <div className="mx-auto w-full max-w-5xl animate-fade-up space-y-7 pb-12 md:space-y-8">
         <Link
           to="/stride/journeys"
-          className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Journeys
+          <ArrowLeft className="h-5 w-5" />
+          Back to Journeys
         </Link>
 
         <section>
@@ -54,19 +54,19 @@ function StrideArchivePage() {
 
         <div className="flex items-center justify-between rounded-xl border border-border/70 bg-card/80 px-4 py-3 shadow-sm backdrop-blur-sm">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-500/20 bg-slate-500/10">
-              <Archive className="h-3.5 w-3.5 text-slate-500" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/70 bg-secondary/60">
+              <Archive className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-xs font-semibold">Archived journeys</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-s font-semibold">Archived journeys</p>
+              <p className="text-[12px] text-muted-foreground">
                 Kept here until you are ready to continue.
               </p>
             </div>
           </div>
 
           {!isLoading && !error && (
-            <span className="rounded-full border border-border/70 bg-background/40 px-2 py-1 text-[9px] font-semibold text-muted-foreground">
+            <span className="rounded-full border border-border/70 bg-background/40 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
               {archived.length} {archived.length === 1 ? "journey" : "journeys"}
             </span>
           )}
@@ -134,17 +134,10 @@ function StrideArchivePage() {
 
         {!isLoading && !error && archived.length > 0 && (
           <div className="flex items-center justify-between border-t border-border/60 pt-4">
-            <p className="text-[9px] text-muted-foreground">
+            <p className="text-[14px] text-muted-foreground">
               {archived.length} archived{" "}
               {archived.length === 1 ? "journey" : "journeys"}
             </p>
-
-            <Link
-              to="/stride/journeys"
-              className="text-[9px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Back to journeys
-            </Link>
           </div>
         )}
       </div>

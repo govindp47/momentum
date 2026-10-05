@@ -185,15 +185,19 @@ function JourneysPage() {
               </div>
 
               {STATUS_FILTERS.map(({ value, label }) => (
-                <Button
+                <button
                   key={value}
-                  size="sm"
-                  variant={statusFilter === value ? "secondary" : "ghost"}
+                  type="button"
                   onClick={() => setStatusFilter(value)}
-                  className="h-7 rounded-lg px-2.5 text-[10px] font-semibold"
+                  aria-pressed={statusFilter === value}
+                  className={`h-8 rounded-lg px-3 text-xs font-medium transition-colors ${
+                    statusFilter === value
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                  }`}
                 >
                   {label}
-                </Button>
+                </button>
               ))}
             </div>
           </div>
@@ -277,7 +281,7 @@ function JourneysPage() {
         )}
 
         <div className="flex items-center justify-between border-t border-border/50 pt-4">
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-[14px] text-muted-foreground">
             {shown.length > 0
               ? `${shown.length} journey${shown.length === 1 ? "" : "s"} in view`
               : "No journeys in view"}
@@ -285,9 +289,9 @@ function JourneysPage() {
 
           <Link
             to="/stride/archive"
-            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[14px] font-semibold text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
           >
-            <Archive className="h-3 w-3" />
+            <Archive className="h-4 w-4" />
             View archived
           </Link>
         </div>

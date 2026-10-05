@@ -213,7 +213,6 @@ function HistoryPage() {
 
           <label className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
             Commitment
-
             <div className="relative">
               <select
                 value={filter}
@@ -311,9 +310,7 @@ function HistoryPage() {
                         chosen
                           ? "bg-primary/5 outline outline-1 outline-primary/60 -outline-offset-1"
                           : ""
-                      } ${
-                        colIndex === 6 ? "border-r-0" : ""
-                      }`}
+                      } ${colIndex === 6 ? "border-r-0" : ""}`}
                     >
                       <span
                         className={`text-[11px] md:text-xs ${
@@ -460,11 +457,7 @@ function HistoryPage() {
                     const Icon = iconMap[getTaskIcon(item.task.name)];
 
                     const Mark =
-                      status === "yes"
-                        ? Check
-                        : status === "no"
-                          ? X
-                          : Minus;
+                      status === "yes" ? Check : status === "no" ? X : Minus;
 
                     const statusColor =
                       status === "yes"
@@ -503,9 +496,7 @@ function HistoryPage() {
                           className={`flex shrink-0 items-center gap-1 text-[9px] font-bold uppercase tracking-[0.06em] ${statusColor}`}
                         >
                           <Mark className="h-3 w-3" />
-                          {status === "unrecorded"
-                            ? "Not recorded"
-                            : status}
+                          {status === "unrecorded" ? "Not recorded" : status}
                         </span>
                       </div>
                     );

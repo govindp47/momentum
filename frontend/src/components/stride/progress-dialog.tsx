@@ -1,7 +1,7 @@
 /**
  * ProgressDialog — log a progress event for a Stride journey.
  *
- * Workflow mirrors stride-lovable/src/components/stride/progress-dialog.tsx:
+ * Workflow:
  * - Select journey
  * - Enter amount with quick-pick buttons
  * - Add optional note
@@ -48,7 +48,6 @@ export function ProgressDialog({
   journeyId,
   journeys: journeysProp,
 }: ProgressDialogProps) {
-  // If no journeys passed, fetch active ones.
   const { data: fetchedJourneys } = useJourneys();
   const logProgress = useLogProgress();
 
@@ -64,7 +63,6 @@ export function ProgressDialog({
   const [note, setNote] = useState("");
   const [done, setDone] = useState(false);
 
-  // Reset when dialog opens.
   useEffect(() => {
     if (open) {
       setSelectedId(
@@ -87,10 +85,12 @@ export function ProgressDialog({
 
   const handleSubmit = () => {
     const value = Number(amount);
+
     if (!selectedJourney || !Number.isFinite(value) || value <= 0) {
       toast.error("Enter a progress amount greater than zero.");
       return;
     }
+
     logProgress.mutate(
       {
         journeyId: selectedJourney.id,
@@ -111,23 +111,25 @@ export function ProgressDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md overflow-hidden sm:w-full">
         {done ? (
-          <div className="flex min-h-64 flex-col items-center justify-center text-center">
-            <div className="flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <div className="flex min-h-64 min-w-0 flex-col items-center justify-center text-center">
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Check size={28} />
             </div>
-            <DialogTitle className="mt-5 text-2xl">
+
+            <DialogTitle className="mt-5 max-w-full text-2xl">
               Progress recorded
             </DialogTitle>
-            <DialogDescription className="mt-2">
+
+            <DialogDescription className="mt-2 max-w-full break-words">
               Your journey moved forward by {amount}
               {selectedJourney?.unit ? ` ${selectedJourney.unit}` : ""}.
             </DialogDescription>
           </div>
         ) : (
           <>
-            <DialogHeader>
+            <DialogHeader className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 A meaningful step
               </p>
@@ -137,20 +139,26 @@ export function ProgressDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="mt-2 space-y-4">
+            <div className="mt-2 min-w-0 space-y-4">
               {/* Journey selector */}
-              <div>
+              <div className="min-w-0">
                 <label className="mb-2 block text-xs text-muted-foreground">
                   Journey
                 </label>
+
                 <Select value={selectedId} onValueChange={setSelectedId}>
-                  <SelectTrigger className="h-11 rounded-xl">
+                  <SelectTrigger className="h-11 w-full min-w-0 rounded-xl">
                     <SelectValue placeholder="Select a journey…" />
                   </SelectTrigger>
-                  <SelectContent>
+
+                  <SelectContent className="max-w-[calc(100vw-2rem)]">
                     {eligibleJourneys.map((j) => (
-                      <SelectItem key={j.id} value={String(j.id)}>
-                        {j.name}
+                      <SelectItem
+                        key={j.id}
+                        value={String(j.id)}
+                        className="max-w-full"
+                      >
+                        <span className="truncate">{j.name}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -158,14 +166,15 @@ export function ProgressDialog({
               </div>
 
               {/* Amount input */}
-              <div className="rounded-xl border border-border bg-card/60 p-5">
+              <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card/60 p-5">
                 <label
                   htmlFor="progress-amount"
                   className="text-xs text-muted-foreground"
                 >
                   Amount
                 </label>
-                <div className="mt-2 flex items-end gap-2">
+
+                <div className="mt-2 flex min-w-0 items-end gap-2">
                   <input
                     id="progress-amount"
                     value={amount}
@@ -173,8 +182,9 @@ export function ProgressDialog({
                     inputMode="decimal"
                     className="min-w-0 flex-1 bg-transparent text-5xl font-bold text-foreground outline-none"
                   />
+
                   {selectedJourney?.unit && (
-                    <span className="mb-2 text-sm text-muted-foreground">
+                    <span className="mb-2 max-w-[40%] shrink-0 truncate text-sm text-muted-foreground">
                       {selectedJourney.unit}
                     </span>
                   )}
@@ -182,7 +192,7 @@ export function ProgressDialog({
               </div>
 
               {/* Quick-pick buttons */}
-              <div className="flex gap-2">
+              <div className="flex min-w-0 gap-2">
                 {[1, 5, 10].map((v) => (
                   <Button
                     key={v}
@@ -200,16 +210,18 @@ export function ProgressDialog({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Add a note (optional)"
-                className="min-h-20 rounded-xl"
+                className="min-h-20 w-full min-w-0 resize-none rounded-xl"
               />
 
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <TimerReset size={14} />
-                This update counts toward your current rhythm.
+              <div className="flex min-w-0 items-start gap-2 text-xs text-muted-foreground">
+                <TimerReset size={14} className="mt-0.5 shrink-0" />
+                <span className="min-w-0">
+                  This update counts toward your current rhythm.
+                </span>
               </div>
 
               <Button
-                className="w-full"
+                className="w-full min-w-0"
                 onClick={handleSubmit}
                 disabled={logProgress.isPending || !selectedJourney}
               >
