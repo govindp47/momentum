@@ -45,6 +45,7 @@ class TestDatabase:
             assert "milestones" in tables
             assert "progress_events" in tables
             assert "frontend_error_events" in tables
+            assert "backend_log_events" in tables
 
             migration_count = database.conn.execute(
                 "SELECT COUNT(*) FROM schema_migrations"
@@ -121,6 +122,57 @@ class TestDatabase:
         try:
             assert database.conn is first_connection
             assert database.in_transaction is False
+        finally:
+            database.close()
+
+    def test_connect_upgrades_previous_schema_to_backend_telemetry(self, tmp_path: Path) -> None:
+        """Connecting at v2 should append the backend telemetry migration."""
+        db_path = tmp_path / "momentum-v2.db"
+        connection = sqlite3.connect(db_path)
+
+        try:
+            connection.execute(
+                """
+                CREATE TABLE schema_migrations (
+                    version     INTEGER PRIMARY KEY,
+                    description TEXT NOT NULL,
+                    applied_at  TEXT NOT NULL
+                )
+                """
+            )
+            for migration in MIGRATIONS[:-1]:
+                for statement in migration.statements:
+                    connection.execute(statement)
+                connection.execute(
+                    """
+                    INSERT INTO schema_migrations (version, description, applied_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    (migration.version, migration.description, "2026-10-01T00:00:00+00:00"),
+                )
+            connection.commit()
+        finally:
+            connection.close()
+
+        database = Database(db_path)
+        database.connect()
+
+        try:
+            table = database.conn.execute(
+                """
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table' AND name = 'backend_log_events'
+                """
+            ).fetchone()
+            versions = [
+                row[0]
+                for row in database.conn.execute(
+                    "SELECT version FROM schema_migrations ORDER BY version"
+                )
+            ]
+            assert table is not None
+            assert versions == [migration.version for migration in MIGRATIONS]
         finally:
             database.close()
 

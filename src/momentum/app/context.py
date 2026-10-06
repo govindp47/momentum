@@ -25,6 +25,8 @@ from momentum.ledger.services.task_service import (
 from momentum.ledger.services.tracking_service import (
     TrackingService as LedgerTrackingService,
 )
+from momentum.observability.repository import BackendTelemetryRepository
+from momentum.observability.service import BackendTelemetryService
 from momentum.storage.database import Database
 from momentum.stride.repositories.journey_repository import (
     JourneyRepository as StrideJourneyRepository,
@@ -137,6 +139,12 @@ class AppContext:
         frontend_telemetry_repository = FrontendTelemetryRepository(connection)
         self.frontend_telemetry_service = FrontendTelemetryService(
             frontend_telemetry_repository,
+        )
+
+        # Backend developer telemetry and inspection.
+        self.backend_telemetry_repository = BackendTelemetryRepository(connection)
+        self.backend_telemetry_service = BackendTelemetryService(
+            self.backend_telemetry_repository,
         )
 
     @property

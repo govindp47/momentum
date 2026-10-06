@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 
 from momentum.app.context import AppContext
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Health"])
 
@@ -42,6 +46,14 @@ def readiness(request: Request) -> JSONResponse | dict[str, str]:
     try:
         context.connection.execute("SELECT 1")
     except Exception:
+        logger.exception(
+            "Readiness database check failed",
+            extra={
+                "component": "api",
+                "operation": "readiness_check",
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+        )
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"status": "not_ready"},

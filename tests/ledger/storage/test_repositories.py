@@ -12,7 +12,7 @@ from momentum.ledger.repositories.task_repository import TaskRepository
 from momentum.ledger.services.task_service import TaskService
 from momentum.ledger.services.tracking_service import TrackingService
 from momentum.storage.database import Database
-from momentum.storage.migrations import run_migrations
+from momentum.storage.migrations import MIGRATIONS, run_migrations
 
 TODAY = date.today()
 YESTERDAY = TODAY - timedelta(days=1)
@@ -113,11 +113,9 @@ class TestSchema:
             """
         ).fetchall()
 
-        assert len(rows) == 2
-        assert rows[0][0] == 1
-        assert rows[0][1] == "Initial Momentum schema"
-        assert rows[1][0] == 2
-        assert rows[1][1] == "Frontend error telemetry table"
+        assert [(row[0], row[1]) for row in rows] == [
+            (migration.version, migration.description) for migration in MIGRATIONS
+        ]
 
     def test_schema_version_is_recorded(
         self,
@@ -130,7 +128,7 @@ class TestSchema:
             """
         ).fetchone()[0]
 
-        assert version == 2
+        assert version == MIGRATIONS[-1].version
 
     def test_unsupported_schema_version_is_rejected(
         self,

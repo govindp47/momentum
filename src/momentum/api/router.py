@@ -8,6 +8,7 @@ from momentum.api.health import router as health_router
 from momentum.dashboard.api import router as dashboard_router
 from momentum.frontend_telemetry.router import router as frontend_telemetry_router
 from momentum.ledger.api.router import router as ledger_router
+from momentum.observability.router import router as backend_telemetry_router
 from momentum.stride.api.router import router as stride_router
 
 API_PREFIX = "/api/v1"
@@ -19,3 +20,4 @@ router.include_router(dashboard_router)
 router.include_router(ledger_router)
 router.include_router(stride_router)
 router.include_router(frontend_telemetry_router)
+router.include_router(backend_telemetry_router)

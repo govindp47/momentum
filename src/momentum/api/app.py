@@ -11,6 +11,7 @@ from momentum import __version__
 from momentum.api.router import router as api_router
 from momentum.app.lifespan import create_lifespan
 from momentum.config import AppConfig, get_config
+from momentum.observability.middleware import RequestContextMiddleware
 
 API_TITLE = "Momentum API"
 API_DESCRIPTION = "Local-first personal tracking API."
@@ -28,6 +29,7 @@ def create_app(
         lifespan=create_lifespan(config_factory),
     )
 
+    app.add_middleware(RequestContextMiddleware)
     app.include_router(api_router)
 
     return app

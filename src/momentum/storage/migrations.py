@@ -263,6 +263,59 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
+    Migration(
+        version=3,
+        description="Backend warning and error telemetry table",
+        statements=(
+            """
+            CREATE TABLE backend_log_events (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp           TEXT NOT NULL,
+                level               TEXT NOT NULL CHECK (
+                    level IN ('WARNING', 'ERROR', 'CRITICAL')
+                ),
+                logger_name         TEXT NOT NULL,
+                source              TEXT NOT NULL,
+                fingerprint         TEXT NOT NULL,
+                request_id          TEXT,
+                method              TEXT,
+                path                TEXT,
+                route               TEXT,
+                status_code         INTEGER,
+                operation           TEXT,
+                component           TEXT,
+                module              TEXT NOT NULL,
+                function            TEXT NOT NULL,
+                exception_type      TEXT,
+                message             TEXT NOT NULL,
+                traceback           TEXT,
+                application_version TEXT NOT NULL,
+                environment         TEXT NOT NULL,
+                process_id          INTEGER NOT NULL,
+                thread_id           INTEGER NOT NULL,
+                python_version      TEXT NOT NULL,
+                metadata_json       TEXT,
+                created_at          TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE INDEX idx_backend_log_events_timestamp
+                ON backend_log_events(timestamp)
+            """,
+            """
+            CREATE INDEX idx_backend_log_events_fingerprint
+                ON backend_log_events(fingerprint)
+            """,
+            """
+            CREATE INDEX idx_backend_log_events_request_id
+                ON backend_log_events(request_id)
+            """,
+            """
+            CREATE INDEX idx_backend_log_events_level
+                ON backend_log_events(level)
+            """,
+        ),
+    ),
 )
 
 

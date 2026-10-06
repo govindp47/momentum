@@ -9,6 +9,7 @@ from fastapi import FastAPI
 
 from momentum.app.context import AppContext
 from momentum.config import AppConfig, get_config
+from momentum.observability.logging import configure_logging
 
 
 def create_lifespan(
@@ -27,12 +28,17 @@ def create_lifespan(
         """Initialize and clean up application-wide resources."""
         config = config_factory()
         context = AppContext(config)
+        logging_runtime = configure_logging(
+            config,
+            context.backend_telemetry_repository,
+        )
 
         app.state.context = context
 
         try:
             yield
         finally:
+            logging_runtime.close()
             context.close()
             app.state.context = None
 

@@ -14,6 +14,7 @@ from momentum.ledger.services.task_service import TaskService as LedgerTaskServi
 from momentum.ledger.services.tracking_service import (
     TrackingService as LedgerTrackingService,
 )
+from momentum.observability.service import BackendTelemetryService
 from momentum.stride.services.achievement_service import AchievementService
 from momentum.stride.services.export_service import ExportService
 from momentum.stride.services.journey_service import JourneyService
@@ -107,3 +108,10 @@ def get_frontend_telemetry_service(
 ) -> FrontendTelemetryService:
     """Return the frontend telemetry service."""
     return context.frontend_telemetry_service
+
+
+def get_backend_telemetry_service(
+    context: Annotated[AppContext, Depends(get_app_context)],
+) -> BackendTelemetryService:
+    """Return the backend telemetry inspection service."""
+    return context.backend_telemetry_service
