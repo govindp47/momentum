@@ -11,7 +11,11 @@ import logging
 
 from fastapi import APIRouter, Depends, Query, Response, status
 
-from momentum.api.dependencies import get_frontend_telemetry_service
+from momentum.api.dependencies import (
+    get_current_session,
+    get_frontend_telemetry_service,
+    require_developer_mode,
+)
 from momentum.frontend_telemetry.schemas import (
     FrontendErrorEventRequest,
     FrontendErrorEventResponse,
@@ -34,6 +38,7 @@ router = APIRouter(
         "Persists a frontend error event for developer investigation. "
         "Always returns 204 — the frontend does not need to wait for a response body."
     ),
+    dependencies=[Depends(get_current_session)],
 )
 def ingest_event(
     event: FrontendErrorEventRequest,
@@ -55,6 +60,7 @@ def ingest_event(
     response_model=list[FrontendErrorEventResponse],
     summary="List frontend error events",
     description="Return stored frontend error events for developer inspection.",
+    dependencies=[Depends(require_developer_mode)],
 )
 def list_events(
     limit: int = Query(

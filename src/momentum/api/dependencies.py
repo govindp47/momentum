@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
 
 from momentum.app.context import AppContext
+from momentum.auth.constants import AUTH_COOKIE_NAME
+from momentum.auth.domain.models import CurrentSession
+from momentum.auth.services.authentication_service import AuthenticationService
 from momentum.dashboard.service import DashboardService
 from momentum.frontend_telemetry.service import FrontendTelemetryService
 from momentum.ledger.services.stats_service import StatsService as LedgerStatsService
@@ -31,6 +34,43 @@ def get_app_context(request: Request) -> AppContext:
         raise RuntimeError("Application context is not initialized.")
 
     return context
+
+
+def get_authentication_service(
+    context: Annotated[AppContext, Depends(get_app_context)],
+) -> AuthenticationService:
+    """Return the single-owner authentication service."""
+    return context.authentication_service
+
+
+def get_current_session(
+    request: Request,
+    service: Annotated[AuthenticationService, Depends(get_authentication_service)],
+) -> CurrentSession:
+    """Require and return a valid owner session."""
+    current = service.authenticate(request.cookies.get(AUTH_COOKIE_NAME))
+    if current is None:
+        detail = "Authentication required." if service.is_initialized() else "Setup required."
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
+    return current
+
+
+def require_developer_mode(
+    current: Annotated[CurrentSession, Depends(get_current_session)],
+    service: Annotated[AuthenticationService, Depends(get_authentication_service)],
+) -> CurrentSession:
+    """Require configured developer authorization and active per-session mode."""
+    if not service.is_developer_authorized(current.user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Developer authorization is required.",
+        )
+    if not service.developer_mode_active(current):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Developer mode is not enabled for this session.",
+        )
+    return current
 
 
 def get_ledger_task_service(

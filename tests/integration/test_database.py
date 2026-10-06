@@ -8,10 +8,41 @@ from pathlib import Path
 import pytest
 
 from momentum.storage.database import Database
-from momentum.storage.migrations import MIGRATIONS
+from momentum.storage.migrations import MIGRATIONS, Migration, run_migrations
 
 
 class TestDatabase:
+    def test_failed_migration_rolls_back_schema_and_version(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        connection = sqlite3.connect(tmp_path / "failed-migration.db", isolation_level=None)
+        migration = Migration(
+            version=1,
+            description="Deliberately failing migration",
+            statements=(
+                "CREATE TABLE should_be_rolled_back (id INTEGER PRIMARY KEY)",
+                "CREATE TABLE invalid SQL",
+            ),
+        )
+        monkeypatch.setattr("momentum.storage.migrations.MIGRATIONS", (migration,))
+
+        try:
+            with pytest.raises(RuntimeError, match="Migration v1 failed"):
+                run_migrations(connection)
+            table = connection.execute(
+                "SELECT name FROM sqlite_master WHERE name = 'should_be_rolled_back'"
+            ).fetchone()
+            version = connection.execute(
+                "SELECT version FROM schema_migrations WHERE version = 1"
+            ).fetchone()
+        finally:
+            connection.close()
+
+        assert table is None
+        assert version is None
+
     def test_connect_creates_database_and_applies_migrations(
         self,
         tmp_path: Path,
@@ -46,6 +77,8 @@ class TestDatabase:
             assert "progress_events" in tables
             assert "frontend_error_events" in tables
             assert "backend_log_events" in tables
+            assert "auth_users" in tables
+            assert "auth_sessions" in tables
 
             migration_count = database.conn.execute(
                 "SELECT COUNT(*) FROM schema_migrations"
@@ -125,9 +158,11 @@ class TestDatabase:
         finally:
             database.close()
 
-    def test_connect_upgrades_previous_schema_to_backend_telemetry(self, tmp_path: Path) -> None:
-        """Connecting at v2 should append the backend telemetry migration."""
-        db_path = tmp_path / "momentum-v2.db"
+    def test_connect_upgrades_previous_schema_to_auth_without_losing_data(
+        self, tmp_path: Path
+    ) -> None:
+        """Connecting at v3 should append auth tables and preserve application data."""
+        db_path = tmp_path / "momentum-v3.db"
         connection = sqlite3.connect(db_path)
 
         try:
@@ -150,6 +185,13 @@ class TestDatabase:
                     """,
                     (migration.version, migration.description, "2026-10-01T00:00:00+00:00"),
                 )
+            connection.execute(
+                """
+                INSERT INTO tasks (name, cutoff_message, created_at)
+                VALUES (?, ?, ?)
+                """,
+                ("Preserved task", "Keep me", "2026-10-01T00:00:00+00:00"),
+            )
             connection.commit()
         finally:
             connection.close()
@@ -158,20 +200,29 @@ class TestDatabase:
         database.connect()
 
         try:
-            table = database.conn.execute(
+            user_table = database.conn.execute(
                 """
                 SELECT name
-                FROM sqlite_master
-                WHERE type = 'table' AND name = 'backend_log_events'
+                FROM sqlite_master WHERE type = 'table' AND name = 'auth_users'
                 """
             ).fetchone()
+            session_table = database.conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'auth_sessions'"
+            ).fetchone()
+            preserved_task = database.conn.execute(
+                "SELECT name FROM tasks WHERE name = ?", ("Preserved task",)
+            ).fetchone()
+            owner_count = database.conn.execute("SELECT COUNT(*) FROM auth_users").fetchone()[0]
             versions = [
                 row[0]
                 for row in database.conn.execute(
                     "SELECT version FROM schema_migrations ORDER BY version"
                 )
             ]
-            assert table is not None
+            assert user_table is not None
+            assert session_table is not None
+            assert preserved_task[0] == "Preserved task"
+            assert owner_count == 0
             assert versions == [migration.version for migration in MIGRATIONS]
         finally:
             database.close()

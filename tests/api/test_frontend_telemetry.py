@@ -22,7 +22,11 @@ def telemetry_app(tmp_path: Path):  # type: ignore[no-untyped-def]
     db_path = tmp_path / "test.db"
 
     def config_factory() -> AppConfig:
-        return AppConfig(data_dir=tmp_path, db_path=db_path)
+        return AppConfig(
+            data_dir=tmp_path,
+            db_path=db_path,
+            developer_usernames=("test-owner",),
+        )
 
     app = create_app(config_factory=config_factory)
     return app
@@ -32,6 +36,22 @@ def telemetry_app(tmp_path: Path):  # type: ignore[no-untyped-def]
 def client(telemetry_app):  # type: ignore[no-untyped-def]
     """Provide a test HTTP client."""
     with TestClient(telemetry_app) as c:
+        signup = c.post(
+            "/api/v1/auth/signup",
+            json={
+                "name": "Test Owner",
+                "username": "test-owner",
+                "password": "correct horse battery",
+            },
+        )
+        assert signup.status_code == 201
+        login = c.post(
+            "/api/v1/auth/login",
+            json={"username": "test-owner", "password": "correct horse battery"},
+        )
+        assert login.status_code == 200
+        developer_mode = c.post("/api/v1/auth/developer-mode", json={"enabled": True})
+        assert developer_mode.status_code == 200
         yield c
 
 

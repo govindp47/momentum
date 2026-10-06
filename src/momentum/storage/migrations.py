@@ -316,6 +316,43 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
+    Migration(
+        version=4,
+        description="Single-owner authentication and persistent sessions",
+        statements=(
+            """
+            CREATE TABLE auth_users (
+                id            INTEGER PRIMARY KEY CHECK (id = 1),
+                name          TEXT NOT NULL,
+                username      TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at    TEXT NOT NULL,
+                updated_at    TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE auth_sessions (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id            INTEGER NOT NULL REFERENCES auth_users(id),
+                session_token_hash TEXT NOT NULL UNIQUE,
+                created_at         TEXT NOT NULL,
+                last_seen_at       TEXT NOT NULL,
+                expires_at         TEXT NOT NULL,
+                revoked_at         TEXT,
+                developer_mode     INTEGER NOT NULL DEFAULT 0
+                                           CHECK (developer_mode IN (0, 1))
+            )
+            """,
+            """
+            CREATE INDEX idx_auth_sessions_user
+                ON auth_sessions(user_id)
+            """,
+            """
+            CREATE INDEX idx_auth_sessions_expiry
+                ON auth_sessions(expires_at)
+            """,
+        ),
+    ),
 )
 
 
@@ -398,26 +435,28 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         )
 
         try:
-            with conn:
-                for statement in migration.statements:
-                    conn.execute(statement)
+            conn.execute("BEGIN")
+            for statement in migration.statements:
+                conn.execute(statement)
 
-                conn.execute(
-                    """
-                    INSERT INTO schema_migrations (
-                        version,
-                        description,
-                        applied_at
-                    )
-                    VALUES (?, ?, datetime('now'))
-                    """,
-                    (
-                        migration.version,
-                        migration.description,
-                    ),
+            conn.execute(
+                """
+                INSERT INTO schema_migrations (
+                    version,
+                    description,
+                    applied_at
                 )
+                VALUES (?, ?, datetime('now'))
+                """,
+                (
+                    migration.version,
+                    migration.description,
+                ),
+            )
+            conn.commit()
 
         except sqlite3.Error as exc:
+            conn.rollback()
             raise RuntimeError(f"Migration v{migration.version} failed: {exc}") from exc
 
         logger.info(

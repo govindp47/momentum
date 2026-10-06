@@ -5,7 +5,10 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import timedelta
 
+from momentum.auth.repositories.auth_repository import AuthRepository
+from momentum.auth.services.authentication_service import AuthenticationService
 from momentum.config import AppConfig
 from momentum.dashboard.service import DashboardService
 from momentum.frontend_telemetry.repository import FrontendTelemetryRepository
@@ -74,6 +77,15 @@ class AppContext:
             self._owns_database = False
 
         connection = self.database.conn
+
+        auth_repository = AuthRepository(connection)
+        self.authentication_service = AuthenticationService(
+            auth_repository,
+            self.database.transaction,
+            developer_usernames=config.developer_usernames,
+            session_lifetime=timedelta(days=config.auth_session_days),
+            cookie_secure=config.auth_cookie_secure,
+        )
 
         # repository instances and database connection.
         ledger_task_repository = LedgerTaskRepository(connection)

@@ -6,6 +6,7 @@ import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
+from threading import RLock
 
 from momentum.storage.migrations import run_migrations
 
@@ -33,6 +34,7 @@ class Database:
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
+        self._transaction_lock = RLock()
 
     def connect(self) -> None:
         """Open and configure the database connection.
@@ -128,20 +130,21 @@ class Database:
         Repositories must not commit transactions themselves. Application
         services should use this helper for mutations that must be atomic.
         """
-        if self.conn.in_transaction:
-            raise RuntimeError(
-                "Cannot start a transaction while another transaction is active.",
-            )
+        with self._transaction_lock:
+            if self.conn.in_transaction:
+                raise RuntimeError(
+                    "Cannot start a transaction while another transaction is active.",
+                )
 
-        self.conn.execute("BEGIN")
+            self.conn.execute("BEGIN")
 
-        try:
-            yield
-        except Exception:
-            self.conn.rollback()
-            raise
-        else:
-            self.conn.commit()
+            try:
+                yield
+            except Exception:
+                self.conn.rollback()
+                raise
+            else:
+                self.conn.commit()
 
     def __enter__(self) -> Database:
         """Open the database for a context-managed lifetime."""

@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 
-from momentum.api.dependencies import get_backend_telemetry_service
+from momentum.api.dependencies import get_backend_telemetry_service, require_developer_mode
 from momentum.observability.schemas import (
     BackendLogEventResponse,
     backend_log_event_response,
@@ -24,6 +24,7 @@ router = APIRouter(
     response_model=list[BackendLogEventResponse],
     summary="List backend log events",
     description="Return persisted backend warnings and errors for developer investigation.",
+    dependencies=[Depends(require_developer_mode)],
 )
 def list_events(
     limit: int = Query(

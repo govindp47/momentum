@@ -7,11 +7,12 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from momentum import __version__
 from momentum.api.app import create_app
+from momentum.api.dependencies import get_current_session
 from momentum.config import AppConfig
 
 
@@ -26,11 +27,12 @@ def backend_telemetry_app(tmp_path: Path) -> tuple[FastAPI, Path]:
             log_level=logging.CRITICAL,
             persistent_log_level=logging.WARNING,
             environment="test",
+            developer_usernames=("test-owner",),
         )
 
     app = create_app(config_factory=config_factory)
 
-    @app.get("/api/v1/test-unexpected")
+    @app.get("/api/v1/test-unexpected", dependencies=[Depends(get_current_session)])
     def unexpected() -> None:
         try:
             raise ValueError("repository-shaped failure")
@@ -49,18 +51,35 @@ def _rows(db_path: Path) -> list[sqlite3.Row]:
         connection.close()
 
 
+def _authenticate(client: TestClient) -> None:
+    signup = client.post(
+        "/api/v1/auth/signup",
+        json={"name": "Test Owner", "username": "test-owner", "password": "correct horse battery"},
+    )
+    assert signup.status_code == 201
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"username": "test-owner", "password": "correct horse battery"},
+    )
+    assert login.status_code == 200
+    developer_mode = client.post("/api/v1/auth/developer-mode", json={"enabled": True})
+    assert developer_mode.status_code == 200
+
+
 def test_unexpected_exception_is_persisted_and_returns_safe_500(
     backend_telemetry_app: tuple[FastAPI, Path],
 ) -> None:
     app, db_path = backend_telemetry_app
 
     with TestClient(app) as client:
+        _authenticate(client)
+        raw_session_token = client.cookies.get("momentum_session")
+        assert raw_session_token is not None
         response = client.get(
             "/api/v1/test-unexpected",
             headers={
                 "X-Request-ID": "frontend-request-123",
                 "Authorization": "Bearer must-not-be-stored",
-                "Cookie": "session=must-not-be-stored-either",
             },
         )
         rows = _rows(db_path)
@@ -96,6 +115,7 @@ def test_unexpected_exception_is_persisted_and_returns_safe_500(
     assert event["environment"] == "test"
     assert event["fingerprint"]
     assert "must-not-be-stored" not in " ".join(str(value) for value in event)
+    assert raw_session_token not in " ".join(str(value) for value in event)
 
     assert list_response.status_code == 200
     listed_events = list_response.json()
@@ -128,6 +148,7 @@ def test_expected_404_and_validation_errors_are_not_persisted(
     app, db_path = backend_telemetry_app
 
     with TestClient(app) as client:
+        _authenticate(client)
         missing_route = client.get("/api/v1/not-a-route")
         missing_domain_resource = client.get("/api/v1/stride/journeys/not-present")
         invalid_request = client.post("/api/v1/stride/journeys", json={})
@@ -146,6 +167,7 @@ def test_backend_log_endpoint_filters_and_orders_events(
     telemetry_logger = logging.getLogger("momentum.tests.backend_api")
 
     with TestClient(app) as client:
+        _authenticate(client)
         telemetry_logger.warning(
             "First warning",
             extra={
