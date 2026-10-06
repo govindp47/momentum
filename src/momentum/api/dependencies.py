@@ -8,6 +8,7 @@ from fastapi import Depends, Request
 
 from momentum.app.context import AppContext
 from momentum.dashboard.service import DashboardService
+from momentum.frontend_telemetry.service import FrontendTelemetryService
 from momentum.ledger.services.stats_service import StatsService as LedgerStatsService
 from momentum.ledger.services.task_service import TaskService as LedgerTaskService
 from momentum.ledger.services.tracking_service import (
@@ -99,3 +100,10 @@ def get_dashboard_service(
 ) -> DashboardService:
     """Return the combined dashboard service."""
     return context.dashboard_service
+
+
+def get_frontend_telemetry_service(
+    context: Annotated[AppContext, Depends(get_app_context)],
+) -> FrontendTelemetryService:
+    """Return the frontend telemetry service."""
+    return context.frontend_telemetry_service

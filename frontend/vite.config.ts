@@ -3,6 +3,10 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { createRequire } from "module";
+
+const _require = createRequire(import.meta.url);
+const pkg = _require("./package.json") as { version: string };
 
 export default defineConfig({
   plugins: [
@@ -40,12 +44,16 @@ export default defineConfig({
   },
   server: {
     // Development proxy: forwards /api requests to the FastAPI backend.
-    // Flow: Browser → /api/v1/... → Vite → http://127.0.0.1:8000/api/v1/...
+    // Flow: Browser -> /api/v1/... -> Vite -> http://127.0.0.1:8000/api/v1/...
     proxy: {
       "/api": {
         target: "http://127.0.0.1:8000",
         changeOrigin: true,
       },
     },
+  },
+  define: {
+    // Injected at build time so the telemetry logger can report app_version.
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(pkg.version),
   },
 });

@@ -44,12 +44,68 @@ class TestDatabase:
             assert "journeys" in tables
             assert "milestones" in tables
             assert "progress_events" in tables
+            assert "frontend_error_events" in tables
 
             migration_count = database.conn.execute(
                 "SELECT COUNT(*) FROM schema_migrations"
             ).fetchone()[0]
 
             assert migration_count == len(MIGRATIONS)
+        finally:
+            database.close()
+
+    def test_connect_upgrades_v1_database_to_current_schema(self, tmp_path: Path) -> None:
+        """Connecting to a v1 database should apply the telemetry migration."""
+        db_path = tmp_path / "momentum.db"
+        connection = sqlite3.connect(db_path)
+
+        try:
+            connection.execute(
+                """
+                CREATE TABLE schema_migrations (
+                    version     INTEGER PRIMARY KEY,
+                    description TEXT NOT NULL,
+                    applied_at  TEXT NOT NULL
+                )
+                """
+            )
+            for statement in MIGRATIONS[0].statements:
+                connection.execute(statement)
+            connection.execute(
+                """
+                INSERT INTO schema_migrations (version, description, applied_at)
+                VALUES (?, ?, ?)
+                """,
+                (
+                    MIGRATIONS[0].version,
+                    MIGRATIONS[0].description,
+                    "2026-10-01T00:00:00+00:00",
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        database = Database(db_path)
+        database.connect()
+
+        try:
+            applied_versions = [
+                row[0]
+                for row in database.conn.execute(
+                    "SELECT version FROM schema_migrations ORDER BY version"
+                )
+            ]
+            table = database.conn.execute(
+                """
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table' AND name = 'frontend_error_events'
+                """
+            ).fetchone()
+
+            assert applied_versions == [migration.version for migration in MIGRATIONS]
+            assert table is not None
         finally:
             database.close()
 

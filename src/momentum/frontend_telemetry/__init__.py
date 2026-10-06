@@ -1,0 +1,1 @@
+"""Frontend telemetry bounded context."""

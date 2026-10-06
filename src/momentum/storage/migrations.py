@@ -213,6 +213,56 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
+    Migration(
+        version=2,
+        description="Frontend error telemetry table",
+        statements=(
+            """
+            CREATE TABLE frontend_error_events (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id         TEXT NOT NULL,
+                timestamp        TEXT NOT NULL,
+                fingerprint      TEXT NOT NULL,
+                level            TEXT NOT NULL CHECK (level IN ('error', 'warning')),
+                source           TEXT NOT NULL,
+                error_name       TEXT,
+                message          TEXT NOT NULL,
+                route            TEXT,
+                url              TEXT,
+                component        TEXT,
+                operation        TEXT,
+                stack            TEXT,
+                component_stack  TEXT,
+                cause            TEXT,
+                filename         TEXT,
+                error_lineno     INTEGER,
+                error_colno      INTEGER,
+                http_method      TEXT,
+                endpoint         TEXT,
+                status_code      INTEGER,
+                app_version      TEXT NOT NULL,
+                user_agent       TEXT NOT NULL,
+                viewport_width   INTEGER NOT NULL,
+                viewport_height  INTEGER NOT NULL,
+                online_status    INTEGER NOT NULL CHECK (online_status IN (0, 1)),
+                metadata_json    TEXT,
+                created_at       TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE INDEX idx_frontend_errors_timestamp
+                ON frontend_error_events(timestamp)
+            """,
+            """
+            CREATE INDEX idx_frontend_errors_fingerprint
+                ON frontend_error_events(fingerprint)
+            """,
+            """
+            CREATE INDEX idx_frontend_errors_source
+                ON frontend_error_events(source)
+            """,
+        ),
+    ),
 )
 
 

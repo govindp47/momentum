@@ -8,6 +8,8 @@ from contextlib import contextmanager
 
 from momentum.config import AppConfig
 from momentum.dashboard.service import DashboardService
+from momentum.frontend_telemetry.repository import FrontendTelemetryRepository
+from momentum.frontend_telemetry.service import FrontendTelemetryService
 from momentum.ledger.repositories.entry_repository import (
     EntryRepository as LedgerEntryRepository,
 )
@@ -129,6 +131,12 @@ class AppContext:
             self.ledger_stats_service,
             self.stride_journey_service,
             self.stride_stats_service,
+        )
+
+        # Frontend error telemetry (isolated — does not touch other services).
+        frontend_telemetry_repository = FrontendTelemetryRepository(connection)
+        self.frontend_telemetry_service = FrontendTelemetryService(
+            frontend_telemetry_repository,
         )
 
     @property

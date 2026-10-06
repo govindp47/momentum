@@ -6,11 +6,13 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportMomentumError } from "../lib/error-reporting";
+import { installGlobalHandlers, setCurrentRoute } from "../lib/telemetry";
 
 function NotFoundComponent() {
   return (
@@ -133,6 +135,17 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const location = useRouterState({ select: (s) => s.location.pathname });
+
+  // Install global error handlers once. Idempotent — safe to call on every mount.
+  useEffect(() => {
+    installGlobalHandlers();
+  }, []);
+
+  // Keep the telemetry route tracker in sync with the current route.
+  useEffect(() => {
+    setCurrentRoute(location);
+  }, [location]);
 
   return (
     <QueryClientProvider client={queryClient}>
