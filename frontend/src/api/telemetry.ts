@@ -10,7 +10,10 @@
  */
 
 import { apiClient } from "./client";
-import type { FrontendErrorEvent } from "@/lib/telemetry/types";
+import type {
+  BackendLogEventResponse,
+  FrontendErrorEventResponse,
+} from "@/types/developer";
 
 const BASE = "/v1/frontend-errors";
 
@@ -22,6 +25,23 @@ export interface FrontendErrorListParams {
   since?: string; // ISO-8601 timestamp
 }
 
+export interface BackendLogListParams {
+  limit?: number;
+  level?: string;
+  fingerprint?: string;
+  requestId?: string;
+  since?: string;
+}
+
+function addSince(search: URLSearchParams, since?: string): void {
+  if (!since) return;
+  const parsed = new Date(since);
+  search.set(
+    "since",
+    Number.isNaN(parsed.getTime()) ? since : parsed.toISOString(),
+  );
+}
+
 export const telemetryApi = {
   /**
    * List persisted frontend error events.
@@ -29,16 +49,33 @@ export const telemetryApi = {
    */
   listErrors(
     params: FrontendErrorListParams = {},
-  ): Promise<FrontendErrorEvent[]> {
+  ): Promise<FrontendErrorEventResponse[]> {
     const search = new URLSearchParams();
     if (params.limit != null) search.set("limit", String(params.limit));
     if (params.source) search.set("source", params.source);
     if (params.level) search.set("level", params.level);
     if (params.fingerprint) search.set("fingerprint", params.fingerprint);
-    if (params.since) search.set("since", params.since);
+    addSince(search, params.since);
     const query = search.toString();
-    return apiClient.get<FrontendErrorEvent[]>(
+    return apiClient.get<FrontendErrorEventResponse[]>(
       query ? `${BASE}?${query}` : BASE,
+      { suppressTelemetry: true },
     );
+  },
+
+  listBackendLogs(
+    params: BackendLogListParams = {},
+  ): Promise<BackendLogEventResponse[]> {
+    const search = new URLSearchParams();
+    if (params.limit != null) search.set("limit", String(params.limit));
+    if (params.level) search.set("level", params.level);
+    if (params.fingerprint) search.set("fingerprint", params.fingerprint);
+    if (params.requestId) search.set("request_id", params.requestId);
+    addSince(search, params.since);
+    const query = search.toString();
+    const path = query ? `/v1/backend-logs?${query}` : "/v1/backend-logs";
+    return apiClient.get<BackendLogEventResponse[]>(path, {
+      suppressTelemetry: true,
+    });
   },
 };

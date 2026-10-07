@@ -164,6 +164,7 @@ async function _persist(event: FrontendErrorEvent): Promise<void> {
       (import.meta.env["VITE_API_BASE_URL"] as string | undefined) ?? "/api";
     await fetch(`${apiBase}${TELEMETRY_ENDPOINT}`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       // Use keepalive so the request survives page unloads.
       keepalive: true,

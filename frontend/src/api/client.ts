@@ -14,6 +14,8 @@ import { frontendLogger, getCurrentRoute } from "@/lib/telemetry/logger";
 
 const API_BASE_URL: string = import.meta.env["VITE_API_BASE_URL"] ?? "/api";
 
+export const SESSION_EXPIRED_EVENT = "momentum:session-expired";
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -46,6 +48,7 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
+  options: { suppressTelemetry?: boolean } = {},
 ): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
 
@@ -53,10 +56,11 @@ async function request<T>(
     body !== undefined
       ? {
           method,
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         }
-      : { method };
+      : { method, credentials: "include" };
 
   let response: Response;
   try {
@@ -66,15 +70,17 @@ async function request<T>(
     const apiError = new ApiError(`Network error: ${message}`, 0);
 
     // Network failures are always unexpected — capture for telemetry.
-    frontendLogger.error({
-      source: "api",
-      message: apiError.message,
-      error: apiError,
-      route: getCurrentRoute(),
-      http_method: method,
-      endpoint: path,
-      status_code: 0,
-    });
+    if (!options.suppressTelemetry) {
+      frontendLogger.error({
+        source: "api",
+        message: apiError.message,
+        error: apiError,
+        route: getCurrentRoute(),
+        http_method: method,
+        endpoint: path,
+        status_code: 0,
+      });
+    }
 
     throw apiError;
   }
@@ -91,8 +97,16 @@ async function request<T>(
     }
     const apiError = new ApiError(detail, response.status);
 
+    if (
+      response.status === 401 &&
+      !path.startsWith("/v1/auth/") &&
+      typeof window !== "undefined"
+    ) {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
+
     // Only capture unexpected (5xx) failures — not normal validation errors.
-    if (isUnexpectedApiFailure(response.status)) {
+    if (isUnexpectedApiFailure(response.status) && !options.suppressTelemetry) {
       frontendLogger.error({
         source: "api",
         message: `API error ${response.status}: ${detail}`,
@@ -120,15 +134,17 @@ async function request<T>(
     const apiError = new ApiError(`Failed to parse response: ${message}`, -1);
 
     // Parse failures are always unexpected.
-    frontendLogger.error({
-      source: "api",
-      message: apiError.message,
-      error: apiError,
-      route: getCurrentRoute(),
-      http_method: method,
-      endpoint: path,
-      status_code: -1,
-    });
+    if (!options.suppressTelemetry) {
+      frontendLogger.error({
+        source: "api",
+        message: apiError.message,
+        error: apiError,
+        route: getCurrentRoute(),
+        http_method: method,
+        endpoint: path,
+        status_code: -1,
+      });
+    }
 
     throw apiError;
   }
@@ -137,8 +153,8 @@ async function request<T>(
 }
 
 export const apiClient = {
-  get<T>(path: string): Promise<T> {
-    return request<T>("GET", path);
+  get<T>(path: string, options?: { suppressTelemetry?: boolean }): Promise<T> {
+    return request<T>("GET", path, undefined, options);
   },
   post<T>(path: string, body: unknown): Promise<T> {
     return request<T>("POST", path, body);

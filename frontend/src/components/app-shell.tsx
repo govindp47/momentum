@@ -3,10 +3,13 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   BookOpen,
+  Bug,
   CalendarDays,
   CircleDot,
   LayoutDashboard,
   ListChecks,
+  LoaderCircle,
+  LogOut,
   Map,
   Menu,
   Moon,
@@ -20,6 +23,20 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+import {
+  useAuth,
+  useLogout,
+  useSetDeveloperMode,
+} from "@/hooks/queries/use-auth";
 import { ThemeProvider, useTheme } from "@/lib/theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,6 +72,140 @@ const strideNavItems: NavItem[] = [
   { label: "Achievements", to: "/stride/achievements", icon: Trophy },
   { label: "History", to: "/stride/history", icon: CalendarDays },
 ];
+
+function userInitials(name: string, username: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length > 1) {
+    return `${parts[0]?.[0] ?? ""}${parts.at(-1)?.[0] ?? ""}`.toUpperCase();
+  }
+  const source = parts[0] || username;
+  return source.slice(0, 2).toUpperCase();
+}
+
+function UserMenu({ collapsed }: { collapsed: boolean }) {
+  const auth = useAuth();
+  const logout = useLogout();
+  const developerMode = useSetDeveloperMode();
+  const user = auth.currentUser;
+
+  if (!user) return null;
+
+  const initials = userInitials(user.name, user.username);
+  const error = developerMode.error
+    ? "Developer mode couldn't be updated."
+    : logout.error
+      ? "Momentum couldn't log out. Please try again."
+      : null;
+
+  const avatar = (
+    <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-secondary-accent/20 bg-secondary-accent/10 text-[12px] font-bold tracking-wide text-secondary-accent shadow-md">
+      {initials}
+      <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-sidebar bg-secondary-accent" />
+    </span>
+  );
+
+  return (
+    <DropdownMenu>
+      {collapsed ? (
+        <div
+          aria-label={user.name}
+          title={user.name}
+          className="flex h-9 w-9 items-center justify-center rounded-lg"
+        >
+          {avatar}
+        </div>
+      ) : (
+        <div className="relative z-10 flex items-center gap-2.5">
+          {avatar}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-semibold text-foreground">
+              {user.name}
+            </p>
+            <p className="truncate text-[9px] font-medium text-muted-foreground">
+              @{user.username}
+            </p>
+          </div>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Open menu for ${user.name}`}
+              className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:bg-secondary-accent/10 hover:text-secondary-accent"
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+        </div>
+      )}
+
+      <DropdownMenuContent
+        side="top"
+        align="end"
+        className="rounded-xl"
+        sideOffset={24}
+      >
+        <DropdownMenuLabel className="-mx-1 -mt-1 rounded-t-lg bg-muted-foreground/10 font-normal shadow-sm">
+          <span className="block truncate text-xs font-semibold text-muted-foreground">
+            @{user.username}
+          </span>
+        </DropdownMenuLabel>
+
+        {auth.developerAuthorized && (
+          <>
+            <div className="flex items-center justify-between gap-3 px-2 py-2">
+              <label
+                htmlFor="developer-mode-switch"
+                className="min-w-0 text-sm font-semibold"
+              >
+                Developer mode
+                <span className="block text-[11px] font-normal text-muted-foreground">
+                  Show diagnostics tools
+                </span>
+              </label>
+              {developerMode.isPending ? (
+                <LoaderCircle className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                <Switch
+                  id="developer-mode-switch"
+                  aria-label="Developer mode"
+                  checked={auth.developerModeEnabled}
+                  disabled={developerMode.isPending}
+                  onCheckedChange={(enabled) => {
+                    developerMode.reset();
+                    developerMode.mutate(enabled);
+                  }}
+                />
+              )}
+            </div>
+          </>
+        )}
+
+        {error && (
+          <p className="px-2 py-1 text-xs text-destructive" role="alert">
+            {error}
+          </p>
+        )}
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={logout.isPending}
+          className="text-destructive focus:text-destructive"
+          onSelect={() => {
+            logout.reset();
+            logout.mutate();
+          }}
+        >
+          {logout.isPending ? (
+            <LoaderCircle className="animate-spin" />
+          ) : (
+            <LogOut />
+          )}
+          {logout.isPending ? "Logging out…" : "Log out"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 // ─── Theme toggle ─────────────────────────────────────────────────────────────
 
@@ -235,6 +386,49 @@ function DashboardHeader({ pageActions }: { pageActions?: ReactNode }) {
   );
 }
 
+// ─── Developer header ────────────────────────────────────────────────────────
+
+function DeveloperHeader({ pageActions }: { pageActions?: ReactNode }) {
+  return (
+    <header className="sticky top-0 z-30 border-b border-border/80 bg-card/95 shadow-sm backdrop-blur-xl">
+      <div className="flex min-h-16 items-center gap-4 px-4 sm:px-6">
+        {/* ── Left: Developer identity ───────────────────────────────── */}
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-destructive/10 text-destructive ring-1 ring-destructive/20 shadow-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-destructive/15 via-destructive/5 to-transparent" />
+
+            <Bug size={21} strokeWidth={1.9} className="relative z-10" />
+
+            <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-destructive shadow-[0_0_6px_color-mix(in_oklch,var(--destructive)_60%,transparent)]" />
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-base font-bold tracking-tight sm:text-[17px]">
+                Errors &amp; Logs
+              </h1>
+
+              <span className="hidden rounded-full border border-secondary-accent/20 bg-secondary-accent/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-secondary-accent lg:inline-flex">
+                Developer
+              </span>
+            </div>
+
+            <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
+              Application diagnostics
+            </p>
+          </div>
+        </div>
+
+        {/* ── Right: Developer actions ────────────────────────────────── */}
+        <div className="ml-auto flex items-center gap-1.5">
+          {pageActions}
+          <ThemeToggleButton />
+        </div>
+      </div>
+    </header>
+  );
+}
+
 // ─── Main AppShell inner (renders sidebar + content) ─────────────────────────
 
 function AppShellInner({
@@ -246,6 +440,7 @@ function AppShellInner({
   subApp?: SubApp;
   pageActions?: ReactNode;
 }) {
+  const auth = useAuth();
   const [mobileMenu, setMobileMenu] = useState(false);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -264,13 +459,17 @@ function AppShellInner({
   }, [sidebarCollapsed]);
 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isDeveloperRoute = pathname.startsWith("/developer");
 
   // Determine which app is "active" in the sidebar for highlighting
   const activeSidebarTo = (to: string) => {
     if (to === "/ledger/today") return pathname.startsWith("/ledger");
     if (to === "/stride/today") return pathname.startsWith("/stride");
+    if (to === "/developer/events") return pathname.startsWith("/developer");
     return false;
   };
+
+  const developerEventsActive = activeSidebarTo("/developer/events");
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -355,7 +554,7 @@ function AppShellInner({
         </div>
 
         <nav
-          className="flex-1 overflow-y-auto px-2 py-3"
+          className="flex flex-1 flex-col overflow-y-auto px-2 py-3"
           aria-label="Primary navigation"
         >
           <div className="mb-2 px-2">
@@ -378,7 +577,7 @@ function AppShellInner({
                   title={sidebarCollapsed ? label : undefined}
                   aria-label={sidebarCollapsed ? label : undefined}
                   aria-current={active ? "page" : undefined}
-                  className={`group relative flex h-10 items-center overflow-hidden rounded-lg border transition-all duration-200 ${
+                  className={`group relative flex h-10 items-center overflow-hidden rounded-xl border transition-all duration-200 ${
                     sidebarCollapsed ? "justify-center" : "gap-2.5 px-2.5"
                   } ${
                     active
@@ -394,7 +593,7 @@ function AppShellInner({
                   )}
 
                   <span
-                    className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-all duration-200 ${
+                    className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border shadow-md transition-all duration-200 ${
                       active
                         ? "border-secondary-accent/25 bg-secondary-accent/10 text-secondary-accent"
                         : "border-sidebar-border bg-sidebar-accent/60 text-muted-foreground group-hover:border-secondary-accent/15 group-hover:bg-secondary-accent/5 group-hover:text-secondary-accent"
@@ -425,53 +624,78 @@ function AppShellInner({
               );
             })}
           </div>
-        </nav>
 
-        <div className="border-t border-sidebar-border p-2.5">
-          <div
-            className={`group relative overflow-hidden rounded-lg border border-sidebar-border bg-sidebar-accent/30 transition-all duration-200 hover:border-secondary-accent/15 hover:bg-secondary-accent/5 ${
-              sidebarCollapsed
-                ? "flex h-9 items-center justify-center"
-                : "px-2 py-1.5"
-            }`}
-            title={sidebarCollapsed ? "Govind Patidar" : undefined}
-          >
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-secondary-accent/5 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-
-            <div
-              className={`relative z-10 flex items-center ${
-                sidebarCollapsed ? "justify-center" : "gap-2.5"
-              }`}
-            >
-              <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-secondary-accent/20 bg-secondary-accent/10 text-[9px] font-bold tracking-wide text-secondary-accent shadow-sm">
-                GP
-                <span className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full border border-sidebar bg-secondary-accent" />
-              </div>
-
+          {auth.developerAuthorized && auth.developerModeEnabled && (
+            <div className="mt-auto border-t border-sidebar-border pt-4">
               {!sidebarCollapsed && (
-                <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-[11px] font-semibold text-foreground">
-                      Govind Patidar
-                    </p>
-
-                    <p className="mt-0.5 truncate text-[9px] font-medium text-muted-foreground">
-                      Momentum user
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="More options"
-                    className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:bg-secondary-accent/10 hover:text-secondary-accent"
-                  >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </Button>
+                <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60">
+                  Developer
                 </div>
               )}
+
+              <Link
+                to="/developer/events"
+                onClick={() => setMobileMenu(false)}
+                title={sidebarCollapsed ? "Errors & logs" : undefined}
+                aria-label={sidebarCollapsed ? "Errors & logs" : undefined}
+                aria-current={developerEventsActive ? "page" : undefined}
+                className={`group relative flex h-10 items-center overflow-hidden rounded-xl border transition-all duration-200 ${
+                  sidebarCollapsed ? "justify-center" : "gap-2.5 px-2.5"
+                } ${
+                  developerEventsActive
+                    ? "border-secondary-accent/20 bg-secondary-accent/10 text-secondary-accent shadow-[0_3px_16px_color-mix(in_oklch,var(--secondary-accent)_8%,transparent)]"
+                    : "border-transparent hover:border-secondary-accent/15 hover:bg-secondary-accent/5 hover:text-secondary-accent-foreground"
+                }`}
+              >
+                {developerEventsActive && (
+                  <>
+                    <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-secondary-accent shadow-[0_0_8px_color-mix(in_oklch,var(--secondary-accent)_70%,transparent)]" />
+                    <span className="absolute inset-0 bg-gradient-to-r from-secondary-accent/7 via-secondary-accent/2 to-transparent" />
+                  </>
+                )}
+
+                <span
+                  className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border shadow-md transition-all duration-200 ${
+                    developerEventsActive
+                      ? "border-secondary-accent/25 bg-secondary-accent/10 text-secondary-accent"
+                      : "border-sidebar-border bg-sidebar-accent/60 text-muted-foreground group-hover:border-secondary-accent/15 group-hover:bg-secondary-accent/5 group-hover:text-secondary-accent"
+                  }`}
+                >
+                  <Bug
+                    size={15}
+                    className="transition-transform duration-200 group-hover:scale-105"
+                  />
+                </span>
+
+                {!sidebarCollapsed && (
+                  <span className="relative z-10 flex min-w-0 flex-1 items-center justify-between">
+                    <span
+                      className={`truncate text-[13px] ${
+                        developerEventsActive ? "font-semibold" : "font-medium"
+                      }`}
+                    >
+                      Errors &amp; logs
+                    </span>
+
+                    {developerEventsActive && (
+                      <span className="ml-2 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary-accent shadow-[0_0_6px_color-mix(in_oklch,var(--secondary-accent)_70%,transparent)]" />
+                    )}
+                  </span>
+                )}
+              </Link>
             </div>
-          </div>
+          )}
+        </nav>
+
+        <div
+          className={`group relative overflow-hidden rounded-lg border border-sidebar-border bg-sidebar-accent/30 shadow-lg transition-all duration-200 hover:border-secondary-accent/15 hover:bg-secondary-accent/5 ${
+            sidebarCollapsed
+              ? "flex h-12 items-center justify-center"
+              : "px-3 py-2"
+          }`}
+        >
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-secondary-accent/5 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+          <UserMenu collapsed={sidebarCollapsed} />
         </div>
       </aside>
 
@@ -504,7 +728,9 @@ function AppShellInner({
         </div>
 
         {/* Sub-app or dashboard header */}
-        {subApp === "ledger" || subApp === "stride" ? (
+        {isDeveloperRoute ? (
+          <DeveloperHeader pageActions={pageActions} />
+        ) : subApp === "ledger" || subApp === "stride" ? (
           <SubAppHeader subApp={subApp} pageActions={pageActions} />
         ) : (
           <DashboardHeader pageActions={pageActions} />

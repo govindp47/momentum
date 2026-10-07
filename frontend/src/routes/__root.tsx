@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+import { AuthGate } from "@/components/auth/auth-gate";
 import appCss from "../styles.css?url";
 import { reportMomentumError } from "../lib/error-reporting";
 import { installGlobalHandlers, setCurrentRoute } from "../lib/telemetry";
@@ -149,7 +150,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <AuthGate>
+        <Outlet />
+      </AuthGate>
     </QueryClientProvider>
   );
 }

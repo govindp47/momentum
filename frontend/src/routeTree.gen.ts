@@ -10,6 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SetupRouteImport } from './routes/setup'
+import { Route as DeveloperEventsRouteImport } from './routes/developer/events'
 import { Route as LedgerCommitmentsRouteImport } from './routes/ledger/commitments'
 import { Route as LedgerHistoryRouteImport } from './routes/ledger/history'
 import { Route as LedgerInsightsRouteImport } from './routes/ledger/insights'
@@ -27,6 +30,21 @@ import { Route as StrideJourneysNewRouteImport } from './routes/stride/journeys/
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeveloperEventsRoute = DeveloperEventsRouteImport.update({
+  id: '/developer/events',
+  path: '/developer/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LedgerCommitmentsRoute = LedgerCommitmentsRouteImport.update({
@@ -97,6 +115,9 @@ const StrideJourneysNewRoute = StrideJourneysNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
+  '/developer/events': typeof DeveloperEventsRoute
   '/ledger/commitments': typeof LedgerCommitmentsRoute
   '/ledger/history': typeof LedgerHistoryRoute
   '/ledger/insights': typeof LedgerInsightsRoute
@@ -113,6 +134,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
+  '/developer/events': typeof DeveloperEventsRoute
   '/ledger/commitments': typeof LedgerCommitmentsRoute
   '/ledger/history': typeof LedgerHistoryRoute
   '/ledger/insights': typeof LedgerInsightsRoute
@@ -129,6 +153,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/setup': typeof SetupRoute
+  '/developer/events': typeof DeveloperEventsRoute
   '/ledger/commitments': typeof LedgerCommitmentsRoute
   '/ledger/history': typeof LedgerHistoryRoute
   '/ledger/insights': typeof LedgerInsightsRoute
@@ -147,6 +174,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
+    | '/setup'
+    | '/developer/events'
     | '/ledger/commitments'
     | '/ledger/history'
     | '/ledger/insights'
@@ -163,6 +193,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/login'
+    | '/setup'
+    | '/developer/events'
     | '/ledger/commitments'
     | '/ledger/history'
     | '/ledger/insights'
@@ -178,6 +211,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/login'
+    | '/setup'
+    | '/developer/events'
     | '/ledger/commitments'
     | '/ledger/history'
     | '/ledger/insights'
@@ -195,6 +231,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
+  SetupRoute: typeof SetupRoute
+  DeveloperEventsRoute: typeof DeveloperEventsRoute
   LedgerCommitmentsRoute: typeof LedgerCommitmentsRoute
   LedgerHistoryRoute: typeof LedgerHistoryRoute
   LedgerInsightsRoute: typeof LedgerInsightsRoute
@@ -214,6 +253,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/developer/events': {
+      id: '/developer/events'
+      path: '/developer/events'
+      fullPath: '/developer/events'
+      preLoaderRoute: typeof DeveloperEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ledger/commitments': {
@@ -328,6 +388,9 @@ const StrideJourneysRouteWithChildren = StrideJourneysRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
+  SetupRoute: SetupRoute,
+  DeveloperEventsRoute: DeveloperEventsRoute,
   LedgerCommitmentsRoute: LedgerCommitmentsRoute,
   LedgerHistoryRoute: LedgerHistoryRoute,
   LedgerInsightsRoute: LedgerInsightsRoute,
