@@ -3,12 +3,123 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Generator
+from collections.abc import Buffer, Generator, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from threading import RLock
+from typing import cast
 
 from momentum.storage.migrations import run_migrations
+
+type _SQLiteValue = str | Buffer | int | float | None
+type _SQLiteParameters = Sequence[_SQLiteValue] | Mapping[str, _SQLiteValue]
+
+
+class _LockedCursor:
+    """Release a connection operation lock after consuming a query result."""
+
+    def __init__(self, cursor: sqlite3.Cursor, operation_lock: RLock) -> None:
+        self._cursor = cursor
+        self._operation_lock = operation_lock
+        self._released = False
+
+    def fetchone(self) -> sqlite3.Row | tuple[object, ...] | None:
+        try:
+            return cast(sqlite3.Row | tuple[object, ...] | None, self._cursor.fetchone())
+        finally:
+            self._release()
+
+    def fetchall(self) -> list[sqlite3.Row] | list[tuple[object, ...]]:
+        try:
+            return cast(
+                list[sqlite3.Row] | list[tuple[object, ...]],
+                self._cursor.fetchall(),
+            )
+        finally:
+            self._release()
+
+    def __iter__(self) -> Iterator[sqlite3.Row | tuple[object, ...]]:
+        try:
+            for row in self._cursor:
+                yield cast(sqlite3.Row | tuple[object, ...], row)
+        finally:
+            self._release()
+
+    @property
+    def lastrowid(self) -> int | None:
+        try:
+            return self._cursor.lastrowid
+        finally:
+            self._release()
+
+    @property
+    def rowcount(self) -> int:
+        try:
+            return self._cursor.rowcount
+        finally:
+            self._release()
+
+    def close(self) -> None:
+        try:
+            self._cursor.close()
+        finally:
+            self._release()
+
+    def __del__(self) -> None:
+        self._release()
+
+    def _release(self) -> None:
+        if not self._released:
+            self._released = True
+            self._operation_lock.release()
+
+
+class _LockedConnection(sqlite3.Connection):
+    """Serialize access to a connection shared by FastAPI worker threads."""
+
+    @property
+    def operation_lock(self) -> RLock:
+        """Return the lock that guards all operations on this connection."""
+        lock = getattr(self, "_operation_lock", None)
+        if lock is None:
+            lock = RLock()
+            self._operation_lock = lock
+        return lock
+
+    def execute(self, sql: str, parameters: object = (), /) -> sqlite3.Cursor:
+        operation_lock = self.operation_lock
+        operation_lock.acquire()
+        try:
+            cursor = super().execute(sql, cast(_SQLiteParameters, parameters))
+        except Exception:
+            operation_lock.release()
+            raise
+        return cast(sqlite3.Cursor, _LockedCursor(cursor, operation_lock))
+
+    def executemany(
+        self,
+        sql: str,
+        parameters: object,
+        /,
+    ) -> sqlite3.Cursor:
+        with self.operation_lock:
+            return super().executemany(sql, cast(Iterable[_SQLiteParameters], parameters))
+
+    def executescript(self, sql_script: str, /) -> sqlite3.Cursor:
+        with self.operation_lock:
+            return super().executescript(sql_script)
+
+    def commit(self) -> None:
+        with self.operation_lock:
+            super().commit()
+
+    def rollback(self) -> None:
+        with self.operation_lock:
+            super().rollback()
+
+    def close(self) -> None:
+        with self.operation_lock:
+            super().close()
 
 
 def _configure_connection(conn: sqlite3.Connection) -> None:
@@ -34,7 +145,6 @@ class Database:
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
-        self._transaction_lock = RLock()
 
     def connect(self) -> None:
         """Open and configure the database connection.
@@ -58,6 +168,7 @@ class Database:
             timeout=5.0,
             isolation_level=None,
             check_same_thread=False,
+            factory=_LockedConnection,
         )
 
         try:
@@ -96,6 +207,13 @@ class Database:
         """Return whether the database currently has an active transaction."""
         return self.conn.in_transaction
 
+    @property
+    def _locked_connection(self) -> _LockedConnection:
+        connection = self.conn
+        if not isinstance(connection, _LockedConnection):
+            raise RuntimeError("Database connection does not support synchronized access.")
+        return connection
+
     def begin(self) -> None:
         """Begin a new database transaction."""
         if self.conn.in_transaction:
@@ -130,7 +248,7 @@ class Database:
         Repositories must not commit transactions themselves. Application
         services should use this helper for mutations that must be atomic.
         """
-        with self._transaction_lock:
+        with self._locked_connection.operation_lock:
             if self.conn.in_transaction:
                 raise RuntimeError(
                     "Cannot start a transaction while another transaction is active.",

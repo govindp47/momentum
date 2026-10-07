@@ -353,6 +353,43 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
+    Migration(
+        version=5,
+        description="Repair missing authentication owner timestamps",
+        statements=(
+            """
+            UPDATE auth_users
+            SET
+                created_at = COALESCE(created_at, updated_at, '1970-01-01T00:00:00+00:00'),
+                updated_at = COALESCE(updated_at, created_at, '1970-01-01T00:00:00+00:00')
+            WHERE created_at IS NULL OR updated_at IS NULL
+            """,
+        ),
+    ),
+    Migration(
+        version=6,
+        description="Enforce authentication owner timestamp presence",
+        statements=(
+            """
+            CREATE TRIGGER reject_auth_user_null_timestamps_on_insert
+            BEFORE INSERT ON auth_users
+            FOR EACH ROW
+            WHEN NEW.created_at IS NULL OR NEW.updated_at IS NULL
+            BEGIN
+                SELECT RAISE(ABORT, 'auth_users timestamps cannot be null');
+            END
+            """,
+            """
+            CREATE TRIGGER reject_auth_user_null_timestamps_on_update
+            BEFORE UPDATE OF created_at, updated_at ON auth_users
+            FOR EACH ROW
+            WHEN NEW.created_at IS NULL OR NEW.updated_at IS NULL
+            BEGIN
+                SELECT RAISE(ABORT, 'auth_users timestamps cannot be null');
+            END
+            """,
+        ),
+    ),
 )
 
 

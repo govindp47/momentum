@@ -191,6 +191,28 @@ def test_login_uses_generic_failure_and_opaque_httponly_cookie(
     ) == timedelta(days=14)
 
 
+def test_concurrent_session_authentication_uses_the_shared_connection_safely(
+    auth_app: tuple[FastAPI, Path],
+) -> None:
+    """Concurrent request workers can read sessions through one application connection."""
+    app, _ = auth_app
+    with TestClient(app) as client:
+        _signup(client)
+        assert _login(client).status_code == 200
+        raw_token = client.cookies.get("momentum_session")
+        assert raw_token is not None
+
+        service = app.state.context.authentication_service
+
+        def authenticate(_: int) -> bool:
+            return service.authenticate(raw_token) is not None
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            authenticated = list(executor.map(authenticate, range(200)))
+
+    assert all(authenticated)
+
+
 def test_authenticated_access_logout_and_revocation(auth_app: tuple[FastAPI, Path]) -> None:
     app, db_path = auth_app
     with TestClient(app) as client:

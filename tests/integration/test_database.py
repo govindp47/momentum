@@ -175,7 +175,7 @@ class TestDatabase:
                 )
                 """
             )
-            for migration in MIGRATIONS[:-1]:
+            for migration in MIGRATIONS[:3]:
                 for statement in migration.statements:
                     connection.execute(statement)
                 connection.execute(
@@ -224,6 +224,75 @@ class TestDatabase:
             assert preserved_task[0] == "Preserved task"
             assert owner_count == 0
             assert versions == [migration.version for migration in MIGRATIONS]
+        finally:
+            database.close()
+
+    def test_connect_repairs_missing_auth_owner_timestamps(self, tmp_path: Path) -> None:
+        """Upgrade malformed pre-v5 owner records without breaking authentication reads."""
+        db_path = tmp_path / "momentum-v4-missing-owner-timestamps.db"
+        connection = sqlite3.connect(db_path)
+
+        try:
+            connection.execute(
+                """
+                CREATE TABLE schema_migrations (
+                    version     INTEGER PRIMARY KEY,
+                    description TEXT NOT NULL,
+                    applied_at  TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE auth_users (
+                    id            INTEGER PRIMARY KEY CHECK (id = 1),
+                    name          TEXT NOT NULL,
+                    username      TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    created_at    TEXT,
+                    updated_at    TEXT
+                )
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO auth_users (id, name, username, password_hash, created_at, updated_at)
+                VALUES (1, 'Owner', 'owner', 'not-used', NULL, NULL)
+                """
+            )
+            for migration in MIGRATIONS[:4]:
+                connection.execute(
+                    """
+                    INSERT INTO schema_migrations (version, description, applied_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    (migration.version, migration.description, "2026-10-01T00:00:00+00:00"),
+                )
+            connection.commit()
+        finally:
+            connection.close()
+
+        database = Database(db_path)
+        database.connect()
+
+        try:
+            row = database.conn.execute(
+                "SELECT created_at, updated_at FROM auth_users WHERE id = 1"
+            ).fetchone()
+            versions = [
+                row[0]
+                for row in database.conn.execute(
+                    "SELECT version FROM schema_migrations ORDER BY version"
+                )
+            ]
+
+            assert row is not None
+            assert row["created_at"] == row["updated_at"] == "1970-01-01T00:00:00+00:00"
+            assert versions == [migration.version for migration in MIGRATIONS]
+            with pytest.raises(
+                sqlite3.IntegrityError, match="auth_users timestamps cannot be null"
+            ):
+                database.conn.execute("UPDATE auth_users SET created_at = NULL WHERE id = 1")
         finally:
             database.close()
 
