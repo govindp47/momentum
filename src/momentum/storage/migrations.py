@@ -492,9 +492,17 @@ def run_migrations(conn: sqlite3.Connection) -> None:
             )
             conn.commit()
 
-        except sqlite3.Error as exc:
-            conn.rollback()
-            raise RuntimeError(f"Migration v{migration.version} failed: {exc}") from exc
+        except BaseException as exc:
+            try:
+                conn.rollback()
+            except BaseException as rollback_error:
+                exc.add_note(
+                    f"Migration rollback also failed with {type(rollback_error).__name__}."
+                )
+
+            if isinstance(exc, sqlite3.Error):
+                raise RuntimeError(f"Migration v{migration.version} failed: {exc}") from exc
+            raise
 
         logger.info(
             "Migration v%d applied successfully.",

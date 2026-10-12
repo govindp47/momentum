@@ -191,6 +191,32 @@ def test_login_uses_generic_failure_and_opaque_httponly_cookie(
     ) == timedelta(days=14)
 
 
+def test_corrupt_password_hash_is_an_unexpected_backend_failure(
+    auth_app: tuple[FastAPI, Path],
+) -> None:
+    app, _ = auth_app
+    with TestClient(app) as client:
+        _signup(client)
+        app.state.context.connection.execute(
+            "UPDATE auth_users SET password_hash = ? WHERE id = 1",
+            ("not-a-valid-password-hash",),
+        )
+
+        response = _login(client)
+        event = app.state.context.connection.execute(
+            "SELECT message, exception_type, traceback FROM backend_log_events"
+        ).fetchone()
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Internal Server Error"}
+    assert event is not None
+    assert event[0] == "Unhandled exception during HTTP request"
+    assert event[1] is not None
+    persisted = " ".join(str(value) for value in event)
+    assert PASSWORD not in persisted
+    assert "not-a-valid-password-hash" not in persisted
+
+
 def test_concurrent_session_authentication_uses_the_shared_connection_safely(
     auth_app: tuple[FastAPI, Path],
 ) -> None:

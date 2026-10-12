@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from momentum.app.context import AppContext
+from momentum.config import AppConfig
 from momentum.storage.database import Database
 from momentum.storage.migrations import MIGRATIONS, Migration, run_migrations
 
@@ -342,6 +344,59 @@ class TestDatabase:
         with pytest.raises(RuntimeError, match="Database is not connected"):
             _ = database.conn
 
+    def test_context_close_failure_does_not_replace_primary_exception(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        database = Database(tmp_path / "context-close-failure.db")
+        database.connect()
+
+        def fail_close() -> None:
+            raise RuntimeError("secondary close failure")
+
+        monkeypatch.setattr(database, "close", fail_close)
+
+        try:
+            with (
+                pytest.raises(ValueError, match="primary context failure") as captured,
+                database,
+            ):
+                raise ValueError("primary context failure")
+
+            assert captured.value.__notes__ == [
+                "Database context cleanup also failed with RuntimeError."
+            ]
+        finally:
+            monkeypatch.undo()
+            database.close()
+
+    def test_app_context_close_failure_does_not_replace_primary_exception(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        context = AppContext(AppConfig(data_dir=tmp_path, db_path=tmp_path / "context.db"))
+
+        def fail_close() -> None:
+            raise RuntimeError("secondary application context close failure")
+
+        monkeypatch.setattr(context, "close", fail_close)
+
+        try:
+            with (
+                pytest.raises(ValueError, match="primary context failure") as captured,
+                context,
+            ):
+                raise ValueError("primary context failure")
+
+            assert captured.value.__notes__ == [
+                "Application context cleanup also failed with RuntimeError."
+            ]
+        finally:
+            monkeypatch.undo()
+            context.close()
+
     def test_conn_requires_connection(self, tmp_path: Path) -> None:
         database = Database(tmp_path / "momentum.db")
 
@@ -426,6 +481,63 @@ class TestDatabase:
 
             assert count == 0
         finally:
+            database.close()
+
+    def test_transaction_rolls_back_when_commit_fails(self, tmp_path: Path) -> None:
+        database = Database(tmp_path / "commit-failure.db")
+        database.connect()
+
+        try:
+            database.conn.execute("CREATE TABLE parents (id INTEGER PRIMARY KEY)")
+            database.conn.execute(
+                """
+                CREATE TABLE children (
+                    id INTEGER PRIMARY KEY,
+                    parent_id INTEGER NOT NULL,
+                    FOREIGN KEY (parent_id) REFERENCES parents(id)
+                        DEFERRABLE INITIALLY DEFERRED
+                )
+                """
+            )
+
+            with (
+                pytest.raises(sqlite3.IntegrityError, match="FOREIGN KEY constraint failed"),
+                database.transaction(),
+            ):
+                database.conn.execute("INSERT INTO children (id, parent_id) VALUES (1, 999)")
+
+            assert database.in_transaction is False
+            count = database.conn.execute("SELECT COUNT(*) FROM children").fetchone()[0]
+            assert count == 0
+        finally:
+            database.close()
+
+    def test_rollback_failure_does_not_replace_primary_exception(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        database = Database(tmp_path / "rollback-failure.db")
+        database.connect()
+
+        def fail_rollback() -> None:
+            raise RuntimeError("secondary rollback failure")
+
+        monkeypatch.setattr(database, "rollback", fail_rollback)
+
+        try:
+            with (
+                pytest.raises(ValueError, match="primary operation failure") as captured,
+                database.transaction(),
+            ):
+                raise ValueError("primary operation failure")
+
+            assert captured.value.__notes__ == [
+                "Transaction rollback also failed with RuntimeError."
+            ]
+        finally:
+            monkeypatch.undo()
+            database.rollback()
             database.close()
 
     def test_transaction_rejects_nested_transaction(

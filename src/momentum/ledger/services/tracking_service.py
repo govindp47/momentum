@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import date
 
 from momentum.ledger.domain.errors import (
@@ -14,8 +13,6 @@ from momentum.ledger.domain.models import DailyEntry, Task
 from momentum.ledger.domain.rules import validate_date_range
 from momentum.ledger.repositories.entry_repository import EntryRepository
 from momentum.ledger.repositories.task_repository import TaskRepository
-
-logger = logging.getLogger(__name__)
 
 
 class TrackingService:
@@ -38,19 +35,11 @@ class TrackingService:
         """Record or update a daily entry for an active task."""
         task = self._require_active_task(task_name)
 
-        entry = self._entries.upsert(
+        return self._entries.upsert(
             task.id,
             entry_date,
             completed,
         )
-
-        logger.debug(
-            "Recorded daily entry for task id=%d on %s",
-            task.id,
-            entry_date,
-        )
-
-        return entry
 
     def record_entry_by_id(
         self,

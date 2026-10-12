@@ -9,7 +9,7 @@ from contextlib import AbstractContextManager
 from datetime import UTC, datetime, timedelta
 
 from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
+from argon2.exceptions import VerifyMismatchError
 from argon2.low_level import Type
 
 from momentum.auth.domain.errors import (
@@ -167,7 +167,7 @@ class AuthenticationService:
     def _password_matches(self, password_hash: str, password: str) -> bool:
         try:
             return self._password_hasher.verify(password_hash, password)
-        except (VerifyMismatchError, VerificationError, InvalidHashError):
+        except VerifyMismatchError:
             return False
 
 

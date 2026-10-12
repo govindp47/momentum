@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import date
 
 import pytest
@@ -11,6 +12,7 @@ from momentum.stride.domain.enums import JourneyStatus, TrackingMethod
 from momentum.stride.domain.errors import (
     DuplicateJourneyName,
     InvalidLifecycleTransition,
+    InvalidMilestoneState,
     InvalidTarget,
     JourneyArchived,
     JourneyNotFound,
@@ -138,6 +140,33 @@ class TestJourneyServiceCreate:
                 target_value=10,
             )
 
+    def test_database_duplicate_is_translated_with_cause(
+        self,
+        db: Database,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        journey_repo = JourneyRepository(db.conn)
+        service = JourneyService(
+            journey_repo,
+            MilestoneRepository(db.conn),
+            db.transaction,
+        )
+        service.create_journey(
+            name="Unique",
+            tracking_method=TrackingMethod.COUNT,
+            target_value=10,
+        )
+        monkeypatch.setattr(journey_repo, "find_by_name", lambda _name: None)
+
+        with pytest.raises(DuplicateJourneyName) as captured:
+            service.create_journey(
+                name="Unique",
+                tracking_method=TrackingMethod.COUNT,
+                target_value=10,
+            )
+
+        assert isinstance(captured.value.__cause__, sqlite3.IntegrityError)
+
     def test_empty_name_raises(self, db: Database) -> None:
         service = _service(db)
 
@@ -156,6 +185,17 @@ class TestJourneyServiceCreate:
                 name="   ",
                 tracking_method=TrackingMethod.COUNT,
                 target_value=10,
+            )
+
+    def test_invalid_initial_milestone_uses_domain_error(self, db: Database) -> None:
+        service = _service(db)
+
+        with pytest.raises(InvalidMilestoneState):
+            service.create_journey(
+                name="Milestone journey",
+                tracking_method=TrackingMethod.MILESTONE,
+                target_value=1,
+                milestone_names=["   "],
             )
 
     def test_zero_target_raises(self, db: Database) -> None:
@@ -335,6 +375,12 @@ class TestJourneyServiceLifecycle:
 
         with pytest.raises(JourneyNotFound):
             service.get_journey("Nonexistent")
+
+    def test_empty_journey_reference_uses_domain_error(self, db: Database) -> None:
+        service = _service(db)
+
+        with pytest.raises(ValidationError):
+            service.get_journey("   ")
 
 
 class TestJourneyServiceEdit:

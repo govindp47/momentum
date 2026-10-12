@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import date
@@ -11,6 +12,7 @@ from momentum.stride.domain.enums import JourneyStatus, TrackingMethod
 from momentum.stride.domain.errors import (
     DuplicateJourneyName,
     JourneyArchived,
+    ValidationError,
 )
 from momentum.stride.domain.models import Journey, Milestone
 from momentum.stride.repositories.journey_repository import JourneyRepository
@@ -80,15 +82,20 @@ class JourneyService:
         normalized_milestones = self._validate_milestone_names(milestone_names)
 
         with self._transaction_manager():
-            journey = self._journeys.create(
-                name=normalized_name,
-                description=description.strip(),
-                tracking_method=tracking_method,
-                target_value=target_value,
-                unit=normalized_unit,
-                start_date=resolved_start_date,
-                target_date=target_date,
-            )
+            try:
+                journey = self._journeys.create(
+                    name=normalized_name,
+                    description=description.strip(),
+                    tracking_method=tracking_method,
+                    target_value=target_value,
+                    unit=normalized_unit,
+                    start_date=resolved_start_date,
+                    target_date=target_date,
+                )
+            except sqlite3.IntegrityError as exc:
+                if exc.sqlite_errorcode == sqlite3.SQLITE_CONSTRAINT_UNIQUE:
+                    raise DuplicateJourneyName(normalized_name) from exc
+                raise
 
             for position, milestone_name in enumerate(normalized_milestones):
                 self._milestones.create(
@@ -190,16 +197,21 @@ class JourneyService:
         )
 
         with self._transaction_manager():
-            return self._journeys.update(
-                journey.id,
-                name=normalized_name,
-                description=(description if description is not None else journey.description),
-                target_value=target_value,
-                unit=updated_unit,
-                clear_unit=clear_unit,
-                target_date=target_date,
-                clear_target_date=clear_target_date,
-            )
+            try:
+                return self._journeys.update(
+                    journey.id,
+                    name=normalized_name,
+                    description=(description if description is not None else journey.description),
+                    target_value=target_value,
+                    unit=updated_unit,
+                    clear_unit=clear_unit,
+                    target_date=target_date,
+                    clear_target_date=clear_target_date,
+                )
+            except sqlite3.IntegrityError as exc:
+                if exc.sqlite_errorcode == sqlite3.SQLITE_CONSTRAINT_UNIQUE:
+                    raise DuplicateJourneyName(normalized_name) from exc
+                raise
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -270,7 +282,7 @@ class JourneyService:
         normalized = name_or_id.strip()
 
         if not normalized:
-            raise ValueError("Journey name or ID must not be empty.")
+            raise ValidationError("journey", "Journey name or ID must not be empty.")
 
         if normalized.isdigit():
             return self._journeys.get_by_id(int(normalized))
@@ -313,16 +325,6 @@ class JourneyService:
         normalized: list[str] = []
 
         for name in milestone_names:
-            value = name.strip()
-
-            if not value:
-                raise ValueError("Milestone names must not be empty.")
-
-            if len(value) > 200:
-                raise ValueError(
-                    "Milestone names must be 200 characters or fewer.",
-                )
-
-            normalized.append(value)
+            normalized.append(rules.validate_milestone_name(name))
 
         return normalized

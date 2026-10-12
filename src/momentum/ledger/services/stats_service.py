@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import date, timedelta
 
 from momentum.ledger.domain.errors import TaskNotFoundError
@@ -22,8 +21,6 @@ from momentum.ledger.domain.rules import (
 )
 from momentum.ledger.repositories.entry_repository import EntryRepository
 from momentum.ledger.repositories.task_repository import TaskRepository
-
-logger = logging.getLogger(__name__)
 
 
 class StatsService:

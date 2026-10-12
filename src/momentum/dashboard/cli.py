@@ -14,8 +14,10 @@ from rich.text import Text
 from momentum.app.context import app_context
 from momentum.config import get_config
 from momentum.dashboard.service import DashboardData
+from momentum.ledger.domain.errors import LifeLedgerError
 from momentum.shared.errors import handle_error
 from momentum.stride.domain.enums import TrackingMethod
+from momentum.stride.domain.errors import StrideError
 from momentum.stride.domain.models import (
     DailyActivity,
     Journey,
@@ -444,7 +446,7 @@ def dashboard(
 
         _render_dashboard(data)
 
-    except Exception as exc:
+    except (LifeLedgerError, StrideError) as exc:
         handle_error(exc)
 
 

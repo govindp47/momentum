@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 
 import typer
 
@@ -12,7 +11,8 @@ from momentum.dashboard import cli as dashboard
 from momentum.ledger.cli import stats as ledger_stats
 from momentum.ledger.cli import tasks as ledger_tasks
 from momentum.ledger.cli import tracking as ledger_tracking
-from momentum.shared.errors import handle_error
+from momentum.ledger.domain.errors import LifeLedgerError
+from momentum.shared.errors import render_error
 from momentum.stride.cli import (
     achievements,
     export_cmd,
@@ -23,6 +23,9 @@ from momentum.stride.cli import (
 from momentum.stride.cli import (
     stats as stride_stats,
 )
+from momentum.stride.domain.errors import StrideError
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     name="momentum",
@@ -158,9 +161,16 @@ def main() -> None:
         app()
     except typer.Exit:
         raise
-    except Exception as exc:
-        handle_error(exc)
-        sys.exit(1)
+    except (LifeLedgerError, StrideError) as exc:
+        render_error(exc)
+        raise SystemExit(1) from None
+    except Exception:
+        logger.exception(
+            "Unhandled exception during CLI command",
+            extra={"component": "cli", "operation": "cli_command"},
+        )
+        render_error(RuntimeError("An unexpected backend error occurred."))
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

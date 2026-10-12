@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 
 from momentum.ledger.domain.errors import (
@@ -15,8 +14,6 @@ from momentum.ledger.domain.errors import (
 from momentum.ledger.domain.models import Task
 from momentum.ledger.domain.rules import validate_task_fields
 from momentum.ledger.repositories.task_repository import TaskRepository
-
-logger = logging.getLogger(__name__)
 
 
 class TaskService:
@@ -43,7 +40,6 @@ class TaskService:
         except sqlite3.IntegrityError as exc:
             raise TaskAlreadyExistsError(name) from exc
 
-        logger.info("Created task id=%d", task.id)
         return task
 
     def edit_task(
@@ -82,7 +78,6 @@ class TaskService:
         except sqlite3.IntegrityError as exc:
             raise TaskAlreadyExistsError(updated_name) from exc
 
-        logger.info("Edited task id=%d", task.id)
         return updated_task
 
     def archive_task(self, name: str) -> Task:
@@ -94,7 +89,6 @@ class TaskService:
 
         archived_task = self._tasks.archive(task.id)
 
-        logger.info("Archived task id=%d", task.id)
         return archived_task
 
     def restore_task(self, name: str) -> Task:
@@ -117,7 +111,6 @@ class TaskService:
         except sqlite3.IntegrityError as exc:
             raise TaskAlreadyExistsError(task.name) from exc
 
-        logger.info("Restored task id=%d", task.id)
         return restored_task
 
     def restore_task_by_id(self, task_id: int) -> Task:
@@ -139,7 +132,6 @@ class TaskService:
         except sqlite3.IntegrityError as exc:
             raise TaskAlreadyExistsError(task.name) from exc
 
-        logger.info("Restored task id=%d", task.id)
         return restored_task
 
     def list_active_tasks(self) -> list[Task]:

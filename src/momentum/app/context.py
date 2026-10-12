@@ -180,15 +180,19 @@ class AppContext:
         traceback: object,
     ) -> None:
         """Close the application context."""
-        self.close()
+        try:
+            self.close()
+        except BaseException as close_error:
+            if isinstance(exc_value, BaseException):
+                exc_value.add_note(
+                    f"Application context cleanup also failed with {type(close_error).__name__}."
+                )
+                return
+            raise
 
 
 @contextmanager
 def app_context(config: AppConfig) -> Generator[AppContext, None, None]:
     """Provide an application context for one CLI command."""
-    context = AppContext(config)
-
-    try:
+    with AppContext(config) as context:
         yield context
-    finally:
-        context.close()

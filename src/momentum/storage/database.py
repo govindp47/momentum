@@ -91,7 +91,7 @@ class _LockedConnection(sqlite3.Connection):
         operation_lock.acquire()
         try:
             cursor = super().execute(sql, cast(_SQLiteParameters, parameters))
-        except Exception:
+        except BaseException:
             operation_lock.release()
             raise
         return cast(sqlite3.Cursor, _LockedCursor(cursor, operation_lock))
@@ -175,8 +175,11 @@ class Database:
             _configure_connection(conn)
             run_migrations(conn)
 
-        except Exception:
-            conn.close()
+        except BaseException as primary_error:
+            try:
+                conn.close()
+            except BaseException as close_error:
+                _add_cleanup_failure_note(primary_error, "Database connection cleanup", close_error)
             raise
 
         self._conn = conn
@@ -258,11 +261,13 @@ class Database:
 
             try:
                 yield
-            except Exception:
-                self.conn.rollback()
+                self.commit()
+            except BaseException as primary_error:
+                try:
+                    self.rollback()
+                except BaseException as rollback_error:
+                    _add_cleanup_failure_note(primary_error, "Transaction rollback", rollback_error)
                 raise
-            else:
-                self.conn.commit()
 
     def __enter__(self) -> Database:
         """Open the database for a context-managed lifetime."""
@@ -276,4 +281,19 @@ class Database:
         traceback: object,
     ) -> None:
         """Close the database when leaving the context."""
-        self.close()
+        try:
+            self.close()
+        except BaseException as close_error:
+            if isinstance(exc_value, BaseException):
+                _add_cleanup_failure_note(exc_value, "Database context cleanup", close_error)
+                return
+            raise
+
+
+def _add_cleanup_failure_note(
+    primary_error: BaseException,
+    operation: str,
+    cleanup_error: BaseException,
+) -> None:
+    """Retain a primary failure while recording a secondary cleanup failure."""
+    primary_error.add_note(f"{operation} also failed with {type(cleanup_error).__name__}.")
