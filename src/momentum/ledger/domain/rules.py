@@ -18,6 +18,7 @@ from momentum.ledger.domain.models import DailyEntry, Task
 
 TREND_FLAT_THRESHOLD = 0.05
 TREND_MIN_RECORDED = 3
+MAX_INSIGHTS_RANGE_DAYS = 3_660
 
 MAX_NAME_LENGTH = 200
 MAX_CUTOFF_LENGTH = 500
@@ -157,3 +158,19 @@ def validate_date_range(
     """Validate an inclusive date range."""
     if from_date > to_date:
         raise InvalidDateError("Start date cannot be after end date.")
+
+
+def validate_insights_date_range(
+    start_date: date,
+    end_date: date,
+) -> int:
+    """Validate and return the size of an inclusive Insights date range."""
+    validate_date_range(start_date, end_date)
+    calendar_days = (end_date - start_date).days + 1
+
+    if calendar_days > MAX_INSIGHTS_RANGE_DAYS:
+        raise InvalidDateError(
+            f"Insights date range cannot exceed {MAX_INSIGHTS_RANGE_DAYS} calendar days."
+        )
+
+    return calendar_days

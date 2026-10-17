@@ -7,7 +7,15 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from momentum.ledger.domain.models import (
+    DEFAULT_COMMITMENT_CATEGORY,
+    CommitmentCategory,
     DailyEntry,
+    InsightsCommitmentStats,
+    InsightsSummary,
+    InsightsTrend,
+    InsightsTrendMode,
+    InsightsTrendPoint,
+    InsightsTrendSeries,
     OverallStats,
     Task,
     TaskStats,
@@ -20,6 +28,7 @@ class TaskCreateRequest(BaseModel):
 
     name: str = Field(min_length=1, max_length=200)
     cutoff_message: str = Field(min_length=1, max_length=500)
+    category: CommitmentCategory = DEFAULT_COMMITMENT_CATEGORY
 
 
 class TaskUpdateRequest(BaseModel):
@@ -27,6 +36,7 @@ class TaskUpdateRequest(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, max_length=200)
     cutoff_message: str | None = Field(default=None, min_length=1, max_length=500)
+    category: CommitmentCategory | None = None
 
 
 class TaskResponse(BaseModel):
@@ -37,6 +47,7 @@ class TaskResponse(BaseModel):
     id: int
     name: str
     cutoff_message: str
+    category: CommitmentCategory
     created_at: datetime
     archived_at: datetime | None
     is_active: bool
@@ -60,6 +71,20 @@ class DailyEntryRecordRequest(BaseModel):
     task_id: int = Field(gt=0)
     date: date
     completed: bool
+
+
+class DailyEntryBatchItemRequest(BaseModel):
+    """One task decision in a daily-entry batch."""
+
+    task_id: int = Field(gt=0)
+    completed: bool
+
+
+class DailyEntryBatchRecordRequest(BaseModel):
+    """Request body for recording multiple task entries for one date."""
+
+    date: date
+    entries: list[DailyEntryBatchItemRequest] = Field(min_length=1, max_length=500)
 
 
 class DayEntryResponse(BaseModel):
@@ -108,6 +133,61 @@ class OverallStatsResponse(BaseModel):
     total_days: int
 
 
+class InsightsCommitmentStatsResponse(BaseModel):
+    """Recorded-day and distribution statistics for one selected commitment."""
+
+    task: TaskResponse
+    completed_days: int
+    not_completed_days: int
+    recorded_days: int
+    completion_percentage: float
+    distribution_percentage: float
+
+
+class InsightsSummaryResponse(BaseModel):
+    """Ledger Insights summary for an explicit commitment/date selection."""
+
+    start_date: date
+    end_date: date
+    calendar_days: int
+    days_with_any_entry: int = Field(
+        description="Distinct dates with an entry for at least one selected commitment."
+    )
+    selected_commitment_ids: list[int]
+    total_completed_days: int
+    commitment_stats: list[InsightsCommitmentStatsResponse]
+
+
+class InsightsTrendPointResponse(BaseModel):
+    """One inclusive historical completion-share point."""
+
+    start_date: date
+    end_date: date
+    completed_days: int
+    recorded_days: int
+    completion_percentage: float
+    distribution_percentage: float
+
+
+class InsightsTrendSeriesResponse(BaseModel):
+    """Calendar-based historical points for one selected commitment."""
+
+    task: TaskResponse
+    points: list[InsightsTrendPointResponse]
+
+
+class InsightsTrendResponse(BaseModel):
+    """Combined historical trend for an explicit commitment selection."""
+
+    reference_date: date
+    year: int
+    available_years: list[int]
+    mode: InsightsTrendMode
+    period_count: int
+    selected_commitment_ids: list[int]
+    series: list[InsightsTrendSeriesResponse]
+
+
 class ErrorResponse(BaseModel):
     """Standard application error response."""
 
@@ -125,6 +205,7 @@ def task_response(task: Task) -> TaskResponse:
         id=task.id,
         name=task.name,
         cutoff_message=task.cutoff_message,
+        category=task.category,
         created_at=task.created_at,
         archived_at=task.archived_at,
         is_active=task.is_active,
@@ -173,4 +254,68 @@ def overall_stats_response(stats: OverallStats) -> OverallStatsResponse:
         spread=stats.spread,
         tracked_days=stats.tracked_days,
         total_days=stats.total_days,
+    )
+
+
+def insights_commitment_stats_response(
+    stats: InsightsCommitmentStats,
+) -> InsightsCommitmentStatsResponse:
+    """Convert one commitment's Insights statistics to an API response."""
+    return InsightsCommitmentStatsResponse(
+        task=task_response(stats.task),
+        completed_days=stats.completed_days,
+        not_completed_days=stats.not_completed_days,
+        recorded_days=stats.recorded_days,
+        completion_percentage=stats.completion_percentage,
+        distribution_percentage=stats.distribution_percentage,
+    )
+
+
+def insights_summary_response(summary: InsightsSummary) -> InsightsSummaryResponse:
+    """Convert a Ledger Insights summary to an API response."""
+    return InsightsSummaryResponse(
+        start_date=summary.start_date,
+        end_date=summary.end_date,
+        calendar_days=summary.calendar_days,
+        days_with_any_entry=summary.days_with_any_entry,
+        selected_commitment_ids=[stats.task.id for stats in summary.commitment_stats],
+        total_completed_days=summary.total_completed_days,
+        commitment_stats=[
+            insights_commitment_stats_response(stats) for stats in summary.commitment_stats
+        ],
+    )
+
+
+def insights_trend_point_response(point: InsightsTrendPoint) -> InsightsTrendPointResponse:
+    """Convert one Insights trend point to an API response."""
+    return InsightsTrendPointResponse(
+        start_date=point.start_date,
+        end_date=point.end_date,
+        completed_days=point.completed_days,
+        recorded_days=point.recorded_days,
+        completion_percentage=point.completion_percentage,
+        distribution_percentage=point.distribution_percentage,
+    )
+
+
+def insights_trend_series_response(
+    series: InsightsTrendSeries,
+) -> InsightsTrendSeriesResponse:
+    """Convert one Insights trend series to an API response."""
+    return InsightsTrendSeriesResponse(
+        task=task_response(series.task),
+        points=[insights_trend_point_response(point) for point in series.points],
+    )
+
+
+def insights_trend_response(trend: InsightsTrend) -> InsightsTrendResponse:
+    """Convert a combined Ledger Insights trend to an API response."""
+    return InsightsTrendResponse(
+        reference_date=trend.reference_date,
+        year=trend.year,
+        available_years=list(trend.available_years),
+        mode=trend.mode,
+        period_count=trend.period_count,
+        selected_commitment_ids=[series.task.id for series in trend.series],
+        series=[insights_trend_series_response(series) for series in trend.series],
     )

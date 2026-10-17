@@ -10,10 +10,14 @@
 
 import { apiClient } from "./client";
 import type {
+  DailyEntryBatchRecordRequest,
   DailyEntryRecordRequest,
   DailyEntryResponse,
   DayEntryResponse,
   HistoryEntryResponse,
+  InsightsSummaryResponse,
+  InsightsTrendMode,
+  InsightsTrendResponse,
   OverallStatsResponse,
   TaskCreateRequest,
   TaskResponse,
@@ -98,6 +102,18 @@ export const ledgerApi = {
   },
 
   /**
+   * Record or update multiple YES/NO entries atomically for one date.
+   */
+  recordEntries(
+    payload: DailyEntryBatchRecordRequest,
+  ): Promise<DailyEntryResponse[]> {
+    return apiClient.post<DailyEntryResponse[]>(
+      `${BASE}/entries/batch`,
+      payload,
+    );
+  },
+
+  /**
    * Get all active tasks and their entry status for a given date.
    * date must be "YYYY-MM-DD".
    */
@@ -161,6 +177,44 @@ export const ledgerApi = {
     if (referenceDate) params.set("reference_date", referenceDate);
     return apiClient.get<TaskStatsResponse>(
       `${BASE}/stats/tasks/${encodeURIComponent(taskName)}?${params.toString()}`,
+    );
+  },
+
+  /** Get recorded-day summary statistics for an explicit commitment selection. */
+  getInsightsSummary(params: {
+    commitmentIds: readonly number[];
+    startDate: string;
+    endDate: string;
+  }): Promise<InsightsSummaryResponse> {
+    const search = new URLSearchParams({
+      start_date: params.startDate,
+      end_date: params.endDate,
+    });
+    params.commitmentIds.forEach((id) =>
+      search.append("commitment_id", String(id)),
+    );
+    return apiClient.get<InsightsSummaryResponse>(
+      `${BASE}/insights/summary?${search.toString()}`,
+    );
+  },
+
+  /** Get calendar-month or cumulative balance points per commitment. */
+  getInsightsTrend(params: {
+    commitmentIds: readonly number[];
+    referenceDate: string;
+    year: number;
+    mode: InsightsTrendMode;
+  }): Promise<InsightsTrendResponse> {
+    const search = new URLSearchParams({
+      reference_date: params.referenceDate,
+      year: String(params.year),
+      mode: params.mode,
+    });
+    params.commitmentIds.forEach((id) =>
+      search.append("commitment_id", String(id)),
+    );
+    return apiClient.get<InsightsTrendResponse>(
+      `${BASE}/insights/trend?${search.toString()}`,
     );
   },
 };

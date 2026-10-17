@@ -22,8 +22,10 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import { ApplicationIcon } from "@/components/application-identity";
 import { Button } from "@/components/ui/button";
 import { useDashboard } from "@/hooks/queries/use-dashboard";
+import { getCommitmentCategoryMetadata } from "@/lib/commitment-categories";
 import { DashboardSkeleton } from "./skeleton";
 import { PageIntro } from "@/components/app-shell";
 import type {
@@ -183,9 +185,7 @@ function LedgerSummary({ ledger }: { ledger: DashboardLedgerResponse }) {
   return (
     <section aria-labelledby="ledger-heading" className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
-          <CalendarCheck2 className="h-4 w-4" aria-hidden />
-        </div>
+        <ApplicationIcon application="ledger" size="xs" />
 
         <h2 id="ledger-heading" className="text-base font-semibold">
           LifeLedger
@@ -238,6 +238,8 @@ function LedgerSummary({ ledger }: { ledger: DashboardLedgerResponse }) {
           {ledger.task_stats.map((ts, index) => {
             const rate = ts.completion_rate;
             const pct = rate !== null ? Math.round(rate * 100) : null;
+            const category = getCommitmentCategoryMetadata(ts.task.category);
+            const CategoryIcon = category.icon;
 
             const TrendIcon =
               ts.trend === "↑"
@@ -264,9 +266,24 @@ function LedgerSummary({ ledger }: { ledger: DashboardLedgerResponse }) {
               >
                 <div className="min-w-0 space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">
-                      {ts.task.name}
-                    </span>
+                    <div
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border ${category.backgroundClass} ${category.borderClass}`}
+                    >
+                      <CategoryIcon
+                        className={`h-3.5 w-3.5 ${category.iconClass}`}
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {ts.task.name}
+                      </span>
+                      <span
+                        className={`block truncate text-[9px] font-medium ${category.badgeTextClass}`}
+                      >
+                        {category.label}
+                      </span>
+                    </div>
 
                     <span
                       className={`flex shrink-0 items-center gap-0.5 text-[10px] font-semibold uppercase ${trendColor}`}
@@ -398,9 +415,7 @@ function JourneysSection({
   return (
     <section aria-labelledby="journeys-heading" className="space-y-4">
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-          <Activity className="h-4 w-4" aria-hidden />
-        </div>
+        <ApplicationIcon application="stride" size="xs" />
 
         <h2 id="journeys-heading" className="text-base font-semibold">
           Active journeys

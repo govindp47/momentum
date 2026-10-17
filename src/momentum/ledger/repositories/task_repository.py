@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from momentum.ledger.domain.models import Task
+from momentum.ledger.domain.models import (
+    DEFAULT_COMMITMENT_CATEGORY,
+    CommitmentCategory,
+    Task,
+)
 
 
 class TaskRepository:
@@ -14,7 +19,12 @@ class TaskRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
-    def create(self, name: str, cutoff_message: str) -> Task:
+    def create(
+        self,
+        name: str,
+        cutoff_message: str,
+        category: CommitmentCategory = DEFAULT_COMMITMENT_CATEGORY,
+    ) -> Task:
         """Persist and return a new task."""
         now = _utc_now()
 
@@ -23,14 +33,16 @@ class TaskRepository:
             INSERT INTO tasks (
                 name,
                 cutoff_message,
+                category,
                 created_at,
                 archived_at
             )
-            VALUES (?, ?, ?, NULL)
+            VALUES (?, ?, ?, ?, NULL)
             """,
             (
                 name,
                 cutoff_message,
+                category.value,
                 _serialize_datetime(now),
             ),
         )
@@ -55,6 +67,7 @@ class TaskRepository:
                 id,
                 name,
                 cutoff_message,
+                category,
                 created_at,
                 archived_at
             FROM tasks
@@ -73,6 +86,7 @@ class TaskRepository:
                 id,
                 name,
                 cutoff_message,
+                category,
                 created_at,
                 archived_at
             FROM tasks
@@ -93,6 +107,7 @@ class TaskRepository:
                 id,
                 name,
                 cutoff_message,
+                category,
                 created_at,
                 archived_at
             FROM tasks
@@ -111,6 +126,7 @@ class TaskRepository:
                 id,
                 name,
                 cutoff_message,
+                category,
                 created_at,
                 archived_at
             FROM tasks
@@ -120,11 +136,35 @@ class TaskRepository:
 
         return [_task_from_row(row) for row in rows]
 
+    def list_by_ids(self, task_ids: Sequence[int]) -> list[Task]:
+        """Return existing tasks in the same order as the supplied IDs."""
+        if not task_ids:
+            return []
+
+        placeholders = ", ".join("?" for _task_id in task_ids)
+        rows = self._connection.execute(
+            f"""
+            SELECT
+                id,
+                name,
+                cutoff_message,
+                category,
+                created_at,
+                archived_at
+            FROM tasks
+            WHERE id IN ({placeholders})
+            """,
+            list(task_ids),
+        ).fetchall()
+        tasks_by_id = {int(row["id"]): _task_from_row(row) for row in rows}
+        return [tasks_by_id[task_id] for task_id in task_ids if task_id in tasks_by_id]
+
     def update(
         self,
         task_id: int,
         name: str,
         cutoff_message: str,
+        category: CommitmentCategory | None = None,
     ) -> Task:
         """Update a task and return its new state."""
         cursor = self._connection.execute(
@@ -132,12 +172,14 @@ class TaskRepository:
             UPDATE tasks
             SET
                 name = ?,
-                cutoff_message = ?
+                cutoff_message = ?,
+                category = COALESCE(?, category)
             WHERE id = ?
             """,
             (
                 name,
                 cutoff_message,
+                category.value if category is not None else None,
                 task_id,
             ),
         )
@@ -214,6 +256,7 @@ def _task_from_row(row: sqlite3.Row) -> Task:
         id=int(row["id"]),
         name=str(row["name"]),
         cutoff_message=str(row["cutoff_message"]),
+        category=CommitmentCategory(str(row["category"])),
         created_at=_parse_datetime(row["created_at"]),
         archived_at=(
             _parse_datetime(row["archived_at"]) if row["archived_at"] is not None else None

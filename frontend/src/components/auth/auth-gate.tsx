@@ -1,9 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 
 import { SESSION_EXPIRED_EVENT } from "@/api/client";
+import {
+  APPLICATION_IDENTITIES,
+  ApplicationIcon,
+} from "@/components/application-identity";
 import { Button } from "@/components/ui/button";
 import { expireSession, useAuth } from "@/hooks/queries/use-auth";
 
@@ -29,10 +33,10 @@ function BootstrapScreen({
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
       <div className="flex max-w-sm flex-col items-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-secondary-accent/20 bg-secondary-accent/10 text-secondary-accent shadow-sm">
-          <Sparkles className="h-5 w-5" />
-        </div>
-        <p className="mt-4 text-sm font-semibold">Momentum identity</p>
+        <ApplicationIcon application="momentum" size="lg" />
+        <p className="mt-4 text-sm font-semibold">
+          {APPLICATION_IDENTITIES.momentum.label}
+        </p>
         {error ? (
           <>
             <p className="mt-2 text-sm text-muted-foreground">{error}</p>

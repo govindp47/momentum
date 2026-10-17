@@ -102,6 +102,7 @@ class AppContext:
         self.ledger_tracking_service = LedgerTrackingService(
             ledger_task_repository,
             ledger_entry_repository,
+            self.database.transaction,
         )
         self.ledger_stats_service = LedgerStatsService(
             ledger_task_repository,

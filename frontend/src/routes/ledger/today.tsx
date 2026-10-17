@@ -1,11 +1,12 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Check, Sparkles, X } from "lucide-react";
 import { AppShell, PageIntro } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { iconMap, getTaskIcon } from "@/lib/lifeledger";
+import { getCommitmentCategoryMetadata } from "@/lib/commitment-categories";
 import {
   useLedgerToday,
-  useRecordEntry,
+  useRecordEntries,
   todayLocalDate,
 } from "@/hooks/queries/use-ledger";
 import { ApiError } from "@/api/client";
@@ -32,6 +33,9 @@ export const Route = createFileRoute("/ledger/today")({
 
 function TodayPage() {
   const today = todayLocalDate();
+  const [draftSelections, setDraftSelections] = useState<
+    Record<number, boolean>
+  >({});
   const {
     data: entries,
     isLoading,
@@ -39,16 +43,64 @@ function TodayPage() {
     error,
     refetch,
   } = useLedgerToday(today);
-  const recordEntry = useRecordEntry(today);
+  const recordEntries = useRecordEntries(today);
 
   const active = entries ?? [];
-  const recorded = active.filter((pair) => pair.entry !== null).length;
-  const completed = active.filter(
-    (pair) => pair.entry !== null && pair.entry.completed,
+  const getSelection = (taskId: number, persisted: boolean | undefined) =>
+    draftSelections[taskId] ?? persisted;
+  const selected = active.filter(
+    (pair) => getSelection(pair.task.id, pair.entry?.completed) !== undefined,
   ).length;
+  const completed = active.filter(
+    (pair) => getSelection(pair.task.id, pair.entry?.completed) === true,
+  ).length;
+  const allSelected = active.length > 0 && selected === active.length;
+  const hasChanges = active.some(
+    (pair) => draftSelections[pair.task.id] !== undefined,
+  );
+  const isFullyRecorded =
+    active.length > 0 &&
+    active.every((pair) => pair.entry !== null) &&
+    !hasChanges;
 
-  const handleEntry = (taskId: number, completed: boolean) => {
-    recordEntry.mutate({ task_id: taskId, date: today, completed });
+  const handleSelection = (
+    taskId: number,
+    persisted: boolean | undefined,
+    completed: boolean,
+  ) => {
+    recordEntries.reset();
+    setDraftSelections((current) => {
+      const next = { ...current };
+
+      if (persisted === completed) {
+        delete next[taskId];
+      } else {
+        next[taskId] = completed;
+      }
+
+      return next;
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!allSelected) return;
+
+    const decisions: Array<{ task_id: number; completed: boolean }> = [];
+
+    for (const pair of active) {
+      const selection = getSelection(pair.task.id, pair.entry?.completed);
+
+      if (selection === undefined) return;
+
+      decisions.push({ task_id: pair.task.id, completed: selection });
+    }
+
+    try {
+      await recordEntries.mutateAsync({ date: today, entries: decisions });
+      setDraftSelections({});
+    } catch {
+      // The mutation exposes the error below and keeps all draft choices for retry.
+    }
   };
 
   // Derive day number (e.g. day 269 of year)
@@ -124,26 +176,26 @@ function TodayPage() {
               />
             </div>
 
-            <div className="flex w-full shrink-0 overflow-hidden rounded-xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm lg:w-auto">
-              <div className="min-w-28 border-r border-border/70 px-4 py-3">
+            <div className="flex w-full shrink-0 overflow-hidden rounded-3xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm lg:w-auto">
+              <div className="min-w-20 border-r border-border/70 px-4 py-1.5 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                  Recorded
+                  Selected
                 </p>
 
-                <p className="mt-1 text-xl font-bold tracking-tight">
-                  {recorded}
+                <p className="text-xl font-bold tracking-tight">
+                  {selected}
                   <span className="ml-1 text-xs font-medium text-muted-foreground">
                     / {active.length}
                   </span>
                 </p>
               </div>
 
-              <div className="min-w-28 px-4 py-3">
+              <div className="min-w-20 px-4 py-1.5 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                   Completed
                 </p>
 
-                <p className="mt-1 text-xl font-bold tracking-tight text-primary">
+                <p className="text-xl font-bold tracking-tight text-primary">
                   {completed}
                 </p>
               </div>
@@ -152,12 +204,12 @@ function TodayPage() {
 
           <div
             className="h-1.5 overflow-hidden rounded-full border border-border/50 bg-secondary/70"
-            aria-label={`${recorded} of ${active.length} recorded`}
+            aria-label={`${selected} of ${active.length} selected`}
           >
             <div
               className="h-full rounded-full bg-primary shadow-[0_0_10px_color-mix(in_oklch,var(--primary)_35%,transparent)] transition-all duration-500"
               style={{
-                width: `${active.length ? (recorded / active.length) * 100 : 0}%`,
+                width: `${active.length ? (selected / active.length) * 100 : 0}%`,
               }}
             />
           </div>
@@ -185,36 +237,35 @@ function TodayPage() {
                 </h3>
 
                 <p className="mt-1 text-[11px] font-medium text-muted-foreground">
-                  Choose yes or no for each commitment.
+                  Choose yes or no for each commitment, then submit them
+                  together.
                 </p>
               </div>
 
-              <span className="rounded-full border border-border/70 bg-card/80 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground shadow-sm">
-                {active.length - recorded} remaining
+              <span className="rounded-full border border-border/70 bg-card/80 px-2.5 py-1 text-[12px] font-semibold text-muted-foreground shadow-sm">
+                {active.length - selected} remaining
               </span>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm">
+            <div className="overflow-hidden rounded-4xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm">
               {active.map((pair, index) => {
                 const { task, entry } = pair;
 
-                const status: "yes" | "no" | "unrecorded" =
-                  entry === null
-                    ? "unrecorded"
-                    : entry.completed
+                const selection = getSelection(task.id, entry?.completed);
+                const status: "yes" | "no" | "unselected" =
+                  selection === undefined
+                    ? "unselected"
+                    : selection
                       ? "yes"
                       : "no";
 
-                const Icon = iconMap[getTaskIcon(task.name)];
-
-                const isPending =
-                  recordEntry.isPending &&
-                  recordEntry.variables?.task_id === task.id;
+                const category = getCommitmentCategoryMetadata(task.category);
+                const Icon = category.icon;
 
                 return (
                   <article
                     key={task.id}
-                    className={`group relative grid gap-4 p-4 transition-all duration-200 hover:bg-accent/30 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center md:p-5 ${
+                    className={`group relative grid gap-4 p-3 transition-all duration-200 hover:bg-accent/30 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center md:p-4 ${
                       index < active.length - 1
                         ? "border-b border-border/70"
                         : ""
@@ -222,15 +273,9 @@ function TodayPage() {
                   >
                     <div className="flex min-w-0 items-start gap-3.5">
                       <div
-                        className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-all duration-200 ${
-                          status === "yes"
-                            ? "border-status-yes/40 bg-status-yes/10 text-status-yes"
-                            : status === "no"
-                              ? "border-status-no/40 bg-status-no/10 text-status-no"
-                              : "border-border/70 bg-secondary/70 text-muted-foreground"
-                        }`}
+                        className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-3xl border shadow-sm transition-all duration-200 ${category.backgroundClass} ${category.borderClass}`}
                       >
-                        <Icon className="h-3.5 w-3.5" />
+                        <Icon className={`h-3.5 w-3.5 ${category.iconClass}`} />
                       </div>
 
                       <div className="min-w-0">
@@ -238,6 +283,12 @@ function TodayPage() {
                           <h4 className="text-[13px] font-bold tracking-tight">
                             {task.name}
                           </h4>
+
+                          <span
+                            className={`rounded-full border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.08em] ${category.backgroundClass} ${category.borderClass} ${category.badgeTextClass}`}
+                          >
+                            {category.label}
+                          </span>
 
                           <span
                             className={`rounded-full border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.08em] ${
@@ -248,7 +299,7 @@ function TodayPage() {
                                   : "border-border/60 bg-secondary/60 text-muted-foreground"
                             }`}
                           >
-                            {status === "unrecorded" ? "Not recorded" : status}
+                            {status === "unselected" ? "Not selected" : status}
                           </span>
                         </div>
 
@@ -258,13 +309,16 @@ function TodayPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 sm:flex">
+                    <div className="grid grid-cols-2 gap-3 sm:flex">
                       <Button
                         variant="outline"
-                        onClick={() => handleEntry(task.id, false)}
+                        size="sm"
+                        onClick={() =>
+                          handleSelection(task.id, entry?.completed, false)
+                        }
                         aria-pressed={status === "no"}
-                        disabled={isPending}
-                        className={`min-w-20 rounded-lg text-xs transition-all duration-200 ${
+                        disabled={recordEntries.isPending}
+                        className={`min-w-16 rounded-4xl text-xs transition-all duration-200 ${
                           status === "no"
                             ? "border-status-no bg-status-no/10 text-status-no shadow-sm hover:bg-status-no/15 hover:text-status-no"
                             : "border-border/70 bg-background/40 text-muted-foreground hover:border-status-no/40 hover:bg-status-no/5 hover:text-status-no"
@@ -275,10 +329,13 @@ function TodayPage() {
 
                       <Button
                         variant="outline"
-                        onClick={() => handleEntry(task.id, true)}
+                        size="sm"
+                        onClick={() =>
+                          handleSelection(task.id, entry?.completed, true)
+                        }
                         aria-pressed={status === "yes"}
-                        disabled={isPending}
-                        className={`min-w-20 rounded-lg text-xs transition-all duration-200 ${
+                        disabled={recordEntries.isPending}
+                        className={`min-w-16 rounded-4xl text-xs transition-all duration-200 ${
                           status === "yes"
                             ? "border-status-yes bg-status-yes/10 text-status-yes shadow-sm hover:bg-status-yes/15 hover:text-status-yes"
                             : "border-border/70 bg-background/40 text-muted-foreground hover:border-status-yes/40 hover:bg-status-yes/5 hover:text-status-yes"
@@ -291,13 +348,43 @@ function TodayPage() {
                 );
               })}
             </div>
+
+            {allSelected && !isFullyRecorded && (
+              <div className="mt-8 text-center">
+                <p className="text-xs text-muted-foreground">
+                  All commitments are selected. Submit once to record the
+                  complete day.
+                </p>
+
+                <Button
+                  type="button"
+                  className="mt-3 rounded-4xl"
+                  disabled={recordEntries.isPending}
+                  onClick={() => void handleSubmit()}
+                >
+                  <Check className="h-4 w-4" />
+                  {recordEntries.isPending
+                    ? "Submitting…"
+                    : "Submit today's entries"}
+                </Button>
+
+                {recordEntries.isError && (
+                  <p
+                    className="mt-3 text-xs font-medium text-status-no"
+                    role="alert"
+                  >
+                    {recordEntries.error.message}
+                  </p>
+                )}
+              </div>
+            )}
           </section>
         )}
 
-        {recorded === active.length && active.length > 0 && (
-          <div className="animate-fade-up overflow-hidden rounded-xl border border-primary/30 bg-primary/5 p-5 text-center shadow-sm">
-            <div className="mx-auto mb-2.5 flex h-9 w-9 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
-              <Sparkles className="h-4 w-4" />
+        {isFullyRecorded && (
+          <div className="animate-fade-up overflow-hidden p-2 text-center">
+            <div className="mx-auto mb-2.5 flex h-9 w-9 items-center justify-center text-primary">
+              <Sparkles className="h-5 w-5" />
             </div>
 
             <p className="text-sm font-bold text-primary">

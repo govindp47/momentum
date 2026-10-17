@@ -390,6 +390,31 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
+    Migration(
+        version=7,
+        description="Ledger commitment categories",
+        statements=(
+            # Existing commitments use the single documented legacy fallback.
+            """
+            ALTER TABLE tasks
+            ADD COLUMN category TEXT NOT NULL DEFAULT 'habits_discipline'
+                CHECK (
+                    category IN (
+                        'health_fitness',
+                        'learning_growth',
+                        'career_work',
+                        'personal_projects',
+                        'reading_knowledge',
+                        'mental_wellbeing',
+                        'nutrition_self_care',
+                        'relationships_social',
+                        'home_responsibilities',
+                        'habits_discipline'
+                    )
+                )
+            """,
+        ),
+    ),
 )
 
 

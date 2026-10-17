@@ -11,7 +11,11 @@ from momentum.ledger.domain.errors import (
     TaskAlreadyExistsError,
     TaskNotFoundError,
 )
-from momentum.ledger.domain.models import Task
+from momentum.ledger.domain.models import (
+    DEFAULT_COMMITMENT_CATEGORY,
+    CommitmentCategory,
+    Task,
+)
 from momentum.ledger.domain.rules import validate_task_fields
 from momentum.ledger.repositories.task_repository import TaskRepository
 
@@ -22,7 +26,12 @@ class TaskService:
     def __init__(self, task_repo: TaskRepository) -> None:
         self._tasks = task_repo
 
-    def create_task(self, name: str, cutoff_message: str) -> Task:
+    def create_task(
+        self,
+        name: str,
+        cutoff_message: str,
+        category: CommitmentCategory = DEFAULT_COMMITMENT_CATEGORY,
+    ) -> Task:
         """Create a new active task."""
         name = name.strip()
         cutoff_message = cutoff_message.strip()
@@ -36,7 +45,7 @@ class TaskService:
             raise TaskAlreadyExistsError(name)
 
         try:
-            task = self._tasks.create(name, cutoff_message)
+            task = self._tasks.create(name, cutoff_message, category)
         except sqlite3.IntegrityError as exc:
             raise TaskAlreadyExistsError(name) from exc
 
@@ -47,6 +56,7 @@ class TaskService:
         name: str,
         new_name: str | None = None,
         new_cutoff: str | None = None,
+        new_category: CommitmentCategory | None = None,
     ) -> Task:
         """Edit an active task."""
         task = self._require_task(name)
@@ -56,6 +66,7 @@ class TaskService:
 
         updated_name = new_name.strip() if new_name is not None else task.name
         updated_cutoff = new_cutoff.strip() if new_cutoff is not None else task.cutoff_message
+        updated_category = new_category if new_category is not None else task.category
 
         validate_task_fields(updated_name, updated_cutoff)
 
@@ -74,6 +85,7 @@ class TaskService:
                 task.id,
                 updated_name,
                 updated_cutoff,
+                updated_category,
             )
         except sqlite3.IntegrityError as exc:
             raise TaskAlreadyExistsError(updated_name) from exc

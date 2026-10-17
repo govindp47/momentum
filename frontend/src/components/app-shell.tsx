@@ -2,8 +2,6 @@ import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
-  BookOpen,
-  Bug,
   CalendarDays,
   CircleDot,
   LayoutDashboard,
@@ -14,14 +12,17 @@ import {
   Menu,
   Moon,
   MoreHorizontal,
-  Mountain,
   PanelLeftClose,
   PanelLeftOpen,
-  Sparkles,
   Sun,
   Trophy,
   X,
 } from "lucide-react";
+import {
+  APPLICATION_IDENTITIES,
+  ApplicationIcon,
+  type ApplicationId,
+} from "@/components/application-identity";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -38,6 +39,7 @@ import {
   useSetDeveloperMode,
 } from "@/hooks/queries/use-auth";
 import { ThemeProvider, useTheme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,11 +51,15 @@ type NavItem = {
   icon: ComponentType<{ className?: string; size?: number }>;
 };
 
+type ApplicationNavItem = {
+  application: Extract<ApplicationId, "ledger" | "stride">;
+};
+
 // ─── Sidebar application-level navigation (Level 1) ──────────────────────────
 
-const appNavItems: NavItem[] = [
-  { label: "Ledger", to: "/ledger/today", icon: BookOpen },
-  { label: "Stride", to: "/stride/today", icon: Mountain },
+const appNavItems: ApplicationNavItem[] = [
+  { application: "ledger" },
+  { application: "stride" },
 ];
 
 // ─── Sub-application navigation (Level 2) ────────────────────────────────────
@@ -61,8 +67,8 @@ const appNavItems: NavItem[] = [
 const ledgerNavItems: NavItem[] = [
   { label: "Today", to: "/ledger/today", icon: CircleDot },
   { label: "Insights", to: "/ledger/insights", icon: BarChart3 },
-  { label: "History", to: "/ledger/history", icon: CalendarDays },
   { label: "Commitments", to: "/ledger/commitments", icon: ListChecks },
+  { label: "History", to: "/ledger/history", icon: CalendarDays },
 ];
 
 const strideNavItems: NavItem[] = [
@@ -72,6 +78,13 @@ const strideNavItems: NavItem[] = [
   { label: "Achievements", to: "/stride/achievements", icon: Trophy },
   { label: "History", to: "/stride/history", icon: CalendarDays },
 ];
+
+const applicationHeaderNavItems: Record<ApplicationId, NavItem[]> = {
+  momentum: [],
+  ledger: ledgerNavItems,
+  stride: strideNavItems,
+  developer: [],
+};
 
 function userInitials(name: string, username: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -91,6 +104,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
   if (!user) return null;
 
   const initials = userInitials(user.name, user.username);
+  const momentumTheme = APPLICATION_IDENTITIES.momentum.theme;
   const error = developerMode.error
     ? "Developer mode couldn't be updated."
     : logout.error
@@ -98,9 +112,22 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
       : null;
 
   const avatar = (
-    <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-secondary-accent/20 bg-secondary-accent/10 text-[12px] font-bold tracking-wide text-secondary-accent shadow-md">
+    <span
+      className={cn(
+        "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border text-[12px] font-bold tracking-wide",
+        momentumTheme.surface,
+        momentumTheme.border,
+        momentumTheme.foreground,
+        momentumTheme.glow,
+      )}
+    >
       {initials}
-      <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-sidebar bg-secondary-accent" />
+      <span
+        className={cn(
+          "absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-sidebar",
+          momentumTheme.dot,
+        )}
+      />
     </span>
   );
 
@@ -130,7 +157,11 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
               variant="ghost"
               size="icon"
               aria-label={`Open menu for ${user.name}`}
-              className="h-7 w-7 shrink-0 rounded-md text-muted-foreground hover:bg-secondary-accent/10 hover:text-secondary-accent"
+              className={cn(
+                "h-7 w-7 shrink-0 rounded-2xl text-muted-foreground transition-[color,background-color]",
+                momentumTheme.foreground,
+                momentumTheme.hover,
+              )}
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
             </Button>
@@ -209,8 +240,9 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
 
 // ─── Theme toggle ─────────────────────────────────────────────────────────────
 
-function ThemeToggleButton() {
+function ThemeToggleButton({ application }: { application: ApplicationId }) {
   const { theme, toggleTheme } = useTheme();
+  const applicationTheme = APPLICATION_IDENTITIES[application].theme;
 
   return (
     <Button
@@ -220,7 +252,13 @@ function ThemeToggleButton() {
         theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
       }
       onClick={toggleTheme}
-      className="h-10 w-10 rounded-full bg-secondary-accent/10 text-secondary-accent ring-1 ring-secondary-accent/15 transition-colors hover:bg-secondary-accent/15 hover:text-secondary-accent"
+      className={cn(
+        "h-10 w-10 rounded-full border transition-[color,background-color,border-color,filter] hover:brightness-110",
+        applicationTheme.surface,
+        applicationTheme.border,
+        applicationTheme.foreground,
+        applicationTheme.glow,
+      )}
     >
       {theme === "dark" ? (
         <Sun className="h-4 w-4" />
@@ -231,24 +269,18 @@ function ThemeToggleButton() {
   );
 }
 
-// ─── Sub-application header (Level 2 nav) ────────────────────────────────────
+// ─── Shared application header ───────────────────────────────────────────────
 
-function SubAppHeader({
-  subApp,
+function ApplicationHeader({
+  application,
   pageActions,
 }: {
-  subApp: "ledger" | "stride";
+  application: ApplicationId;
   pageActions?: ReactNode;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-
-  const navItems = subApp === "ledger" ? ledgerNavItems : strideNavItems;
-  const SubAppIcon = subApp === "ledger" ? BookOpen : Mountain;
-
-  const subAppLabel = subApp === "ledger" ? "Ledger" : "Stride";
-
-  const subAppDescription =
-    subApp === "ledger" ? "Your daily commitments" : "Your long-term progress";
+  const navItems = applicationHeaderNavItems[application];
+  const identity = APPLICATION_IDENTITIES[application];
 
   const isActive = (to: string) => {
     if (to === "/stride/journeys") {
@@ -262,41 +294,47 @@ function SubAppHeader({
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/80 bg-card/95 shadow-sm backdrop-blur-xl">
-      <div className="relative flex min-h-16 items-center gap-4 px-4 sm:px-6">
-        {/* ── Left: Sub-application identity ─────────────────────────── */}
+    <header
+      className={cn(
+        "sticky top-0 z-30 mx-12 overflow-hidden rounded-b-4xl border-x border-b bg-card/90 shadow-md backdrop-blur-xl",
+        identity.theme.border,
+      )}
+    >
+      <div className="relative flex min-h-14 items-center gap-4 px-2 sm:px-4">
+        {/* ── Left: Application identity ─────────────────────────────── */}
         <div className="flex min-w-0 flex-1 basis-1/3 items-center gap-3">
           {/* Application icon */}
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20 shadow-sm">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
-
-            <SubAppIcon size={21} strokeWidth={1.9} className="relative z-10" />
-
-            <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_6px_color-mix(in_oklch,var(--primary)_60%,transparent)]" />
-          </div>
+          <ApplicationIcon application={application} size="sm" />
 
           {/* Application identity */}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-base font-bold tracking-tight sm:text-[17px]">
-                {subAppLabel}
+                {identity.label}
               </h1>
 
-              <span className="hidden rounded-full border border-secondary-accent/20 bg-secondary-accent/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-secondary-accent lg:inline-flex">
-                App
+              <span
+                className={cn(
+                  "hidden rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] lg:inline-flex",
+                  identity.theme.surface,
+                  identity.theme.border,
+                  identity.theme.foreground,
+                )}
+              >
+                {identity.badge}
               </span>
             </div>
 
-            <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
-              {subAppDescription}
+            <p className="truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
+              {identity.description}
             </p>
           </div>
         </div>
 
-        {/* ── Center: Sub-application navigation ─────────────────────── */}
+        {/* ── Center: Application navigation ─────────────────────────── */}
         <nav
-          className="momentum-subapp-nav absolute left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-xl border border-border/70 bg-background/60 p-1 shadow-sm backdrop-blur-md"
-          aria-label={`${subAppLabel} navigation`}
+          className="momentum-subapp-nav absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5"
+          aria-label={`${identity.label} navigation`}
         >
           {navItems.map(({ label, to, icon: Icon }) => {
             const active = isActive(to);
@@ -306,25 +344,40 @@ function SubAppHeader({
                 key={to}
                 to={to as "/"}
                 aria-current={active ? "page" : undefined}
-                className={`group relative flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-all duration-150 sm:px-3 sm:text-sm ${
+                className={cn(
+                  "group relative flex h-7 shrink-0 items-center gap-1.5 rounded-2xl border px-2.5 text-xs font-medium transition-all duration-150 sm:px-3 sm:text-sm",
                   active
-                    ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/15"
-                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-                }`}
+                    ? [
+                        identity.theme.surface,
+                        identity.theme.border,
+                        identity.theme.foreground,
+                        identity.theme.glow,
+                      ]
+                    : [
+                        "border-transparent text-muted-foreground",
+                        identity.theme.hover,
+                      ],
+                )}
               >
                 <Icon
                   size={14}
-                  className={`shrink-0 transition-colors ${
+                  className={cn(
+                    "shrink-0 transition-colors",
                     active
-                      ? "text-primary"
-                      : "text-muted-foreground group-hover:text-foreground"
-                  }`}
+                      ? identity.theme.foreground
+                      : "text-muted-foreground group-hover:text-current",
+                  )}
                 />
 
                 <span>{label}</span>
 
                 {active && (
-                  <span className="absolute inset-x-2 -bottom-0.5 h-0.5 rounded-full bg-primary/80" />
+                  <span
+                    className={cn(
+                      "absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full",
+                      identity.theme.dot,
+                    )}
+                  />
                 )}
               </Link>
             );
@@ -334,95 +387,7 @@ function SubAppHeader({
         {/* ── Right: Application actions ─────────────────────────────── */}
         <div className="ml-auto flex flex-1 basis-1/3 items-center justify-end gap-1.5">
           {pageActions}
-          <ThemeToggleButton />
-        </div>
-      </div>
-    </header>
-  );
-}
-
-// ─── Dashboard header ────────────────────────────────────
-
-function DashboardHeader({ pageActions }: { pageActions?: ReactNode }) {
-  return (
-    <header className="sticky top-0 z-30 border-b border-border/80 bg-card/95 shadow-sm backdrop-blur-xl">
-      <div className="flex min-h-16 items-center gap-4 px-4 sm:px-6">
-        {/* ── Left: Momentum identity ──────────────────────────────── */}
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          {/* Momentum icon */}
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20 shadow-sm">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
-
-            <Sparkles size={21} strokeWidth={1.9} className="relative z-10" />
-
-            <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_6px_color-mix(in_oklch,var(--primary)_60%,transparent)]" />
-          </div>
-
-          {/* Momentum identity */}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate text-base font-bold tracking-tight sm:text-[17px]">
-                Momentum
-              </h1>
-
-              <span className="hidden rounded-full border border-secondary-accent/20 bg-secondary-accent/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-secondary-accent lg:inline-flex">
-                Core
-              </span>
-            </div>
-
-            <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
-              Your personal workspace
-            </p>
-          </div>
-        </div>
-
-        {/* ── Right: Core actions ─────────────────────────────────── */}
-        <div className="ml-auto flex items-center gap-1.5">
-          {pageActions}
-          <ThemeToggleButton />
-        </div>
-      </div>
-    </header>
-  );
-}
-
-// ─── Developer header ────────────────────────────────────────────────────────
-
-function DeveloperHeader({ pageActions }: { pageActions?: ReactNode }) {
-  return (
-    <header className="sticky top-0 z-30 border-b border-border/80 bg-card/95 shadow-sm backdrop-blur-xl">
-      <div className="flex min-h-16 items-center gap-4 px-4 sm:px-6">
-        {/* ── Left: Developer identity ───────────────────────────────── */}
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-destructive/10 text-destructive ring-1 ring-destructive/20 shadow-sm">
-            <div className="absolute inset-0 bg-gradient-to-br from-destructive/15 via-destructive/5 to-transparent" />
-
-            <Bug size={21} strokeWidth={1.9} className="relative z-10" />
-
-            <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-destructive shadow-[0_0_6px_color-mix(in_oklch,var(--destructive)_60%,transparent)]" />
-          </div>
-
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate text-base font-bold tracking-tight sm:text-[17px]">
-                Errors &amp; Logs
-              </h1>
-
-              <span className="hidden rounded-full border border-secondary-accent/20 bg-secondary-accent/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-secondary-accent lg:inline-flex">
-                Developer
-              </span>
-            </div>
-
-            <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
-              Application diagnostics
-            </p>
-          </div>
-        </div>
-
-        {/* ── Right: Developer actions ────────────────────────────────── */}
-        <div className="ml-auto flex items-center gap-1.5">
-          {pageActions}
-          <ThemeToggleButton />
+          <ThemeToggleButton application={application} />
         </div>
       </div>
     </header>
@@ -460,6 +425,11 @@ function AppShellInner({
 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isDeveloperRoute = pathname.startsWith("/developer");
+  const headerApplication: ApplicationId = isDeveloperRoute
+    ? "developer"
+    : subApp === "ledger" || subApp === "stride"
+      ? subApp
+      : "momentum";
 
   // Determine which app is "active" in the sidebar for highlighting
   const activeSidebarTo = (to: string) => {
@@ -475,71 +445,82 @@ function AppShellInner({
     <div className="flex min-h-screen bg-background text-foreground">
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden rounded-r-4xl border-y border-r border-sidebar-border bg-sidebar shadow-md transition-[width,transform] duration-[250ms] ease-out will-change-[width,transform] md:translate-x-0 ${
           mobileMenu ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         } ${sidebarCollapsed ? "w-14" : "w-56"}`}
       >
         {/* Brand + collapse button */}
         <div
-          className={`relative flex h-16 shrink-0 items-center border-b border-sidebar-border bg-sidebar shadow-sm ${
+          className={`relative flex h-16 shrink-0 items-center border-b border-sidebar-border bg-sidebar shadow-sm transition-[padding] duration-[250ms] ease-out ${
             sidebarCollapsed ? "justify-center px-2" : "px-3"
           }`}
         >
-          {sidebarCollapsed ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`group absolute left-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-3xl p-0 transition-[opacity,transform] duration-200 ease-out ${
+              sidebarCollapsed
+                ? "scale-100 opacity-100"
+                : "pointer-events-none scale-90 opacity-0"
+            }`}
+            aria-label="Expand sidebar"
+            onClick={() => setSidebarCollapsed(false)}
+          >
+            <ApplicationIcon
+              application="momentum"
+              className="transition-all duration-200 group-hover:scale-75 group-hover:opacity-0"
+            />
+
+            <PanelLeftOpen
+              className={cn(
+                "absolute h-[17px] w-[17px] scale-75 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100",
+                APPLICATION_IDENTITIES.momentum.theme.foreground,
+              )}
+            />
+          </Button>
+
+          <div
+            className={`flex min-w-0 flex-1 items-center transition-[opacity,transform] duration-200 ease-out ${
+              sidebarCollapsed
+                ? "pointer-events-none -translate-x-2 opacity-0"
+                : "translate-x-0 opacity-100"
+            }`}
+          >
+            <div className="group flex min-w-0 flex-1 items-center gap-2.5">
+              <Link
+                to="/"
+                aria-label="Go to Momentum dashboard"
+                className="rounded-2xl transition-transform duration-200 hover:scale-105"
+              >
+                <ApplicationIcon application="momentum" size="sm" />
+              </Link>
+
+              <div className="min-w-0">
+                <h1 className="truncate text-[15px] font-bold tracking-tight text-foreground">
+                  {APPLICATION_IDENTITIES.momentum.label}
+                </h1>
+
+                <p className="truncate text-[9px] font-medium tracking-tight text-muted-foreground">
+                  {APPLICATION_IDENTITIES.momentum.description}
+                </p>
+              </div>
+            </div>
+
+            {/* Collapse button */}
             <Button
               variant="ghost"
               size="icon"
-              className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-secondary-accent/20 bg-secondary-accent/10 text-secondary-accent shadow-sm transition-all duration-200 hover:border-secondary-accent/35 hover:bg-secondary-accent/15 hover:shadow-[0_0_20px_color-mix(in_oklch,var(--secondary-accent)_12%,transparent)]"
-              aria-label="Expand sidebar"
-              onClick={() => setSidebarCollapsed(false)}
+              className={cn(
+                "ml-2 h-9 w-9 shrink-0 rounded-3xl bg-transparent transition-[color,background-color] duration-200",
+                APPLICATION_IDENTITIES.momentum.theme.foreground,
+                APPLICATION_IDENTITIES.momentum.theme.hover,
+              )}
+              aria-label="Collapse sidebar"
+              onClick={() => setSidebarCollapsed(true)}
             >
-              <Sparkles className="h-[18px] w-[18px] transition-all duration-200 group-hover:scale-0 group-hover:opacity-0" />
-
-              <PanelLeftOpen className="absolute h-[17px] w-[17px] scale-75 text-secondary-accent opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100" />
-
-              <span className="absolute inset-0 rounded-xl bg-gradient-to-br from-secondary-accent/15 via-transparent to-transparent" />
+              <PanelLeftClose className="h-[17px] w-[17px]" />
             </Button>
-          ) : (
-            <>
-              <div className="group flex min-w-0 flex-1 items-center gap-2.5">
-                <Link
-                  to="/"
-                  aria-label="Go to Momentum dashboard"
-                  className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-secondary-accent/20 bg-secondary-accent/10 text-secondary-accent shadow-sm transition-all duration-200 hover:border-secondary-accent/35 hover:bg-secondary-accent/15 hover:shadow-[0_0_20px_color-mix(in_oklch,var(--secondary-accent)_15%,transparent)]"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-secondary-accent/20 via-secondary-accent/5 to-transparent" />
-
-                  <Sparkles
-                    className="relative z-10 h-[17px] w-[17px] transition-transform duration-200 group-hover:scale-105"
-                    strokeWidth={1.9}
-                  />
-
-                  <span className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-secondary-accent shadow-[0_0_7px_color-mix(in_oklch,var(--secondary-accent)_65%,transparent)]" />
-                </Link>
-
-                <div className="min-w-0">
-                  <h1 className="truncate text-[15px] font-bold tracking-tight text-foreground">
-                    Momentum
-                  </h1>
-
-                  <p className="mt-0.5 truncate text-[9px] font-medium tracking-wide text-muted-foreground">
-                    Personal workspace
-                  </p>
-                </div>
-              </div>
-
-              {/* Collapse button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-2 h-9 w-9 shrink-0 rounded-lg border border-transparent text-muted-foreground transition-all duration-200 hover:border-secondary-accent/15 hover:bg-secondary-accent/10 hover:text-secondary-accent"
-                aria-label="Collapse sidebar"
-                onClick={() => setSidebarCollapsed(true)}
-              >
-                <PanelLeftClose className="h-[17px] w-[17px]" />
-              </Button>
-            </>
-          )}
+          </div>
 
           {/* Mobile close */}
           <Button
@@ -557,16 +538,23 @@ function AppShellInner({
           className="flex flex-1 flex-col overflow-y-auto px-2 py-3"
           aria-label="Primary navigation"
         >
-          <div className="mb-2 px-2">
-            {!sidebarCollapsed && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60">
-                Applications
-              </span>
-            )}
+          <div className="mb-2 h-4 px-2">
+            <span
+              aria-hidden={sidebarCollapsed}
+              className={`block text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60 transition-[opacity,transform] duration-150 ease-out ${
+                sidebarCollapsed
+                  ? "-translate-x-1 opacity-0"
+                  : "translate-x-0 opacity-100"
+              }`}
+            >
+              Applications
+            </span>
           </div>
 
           <div className="space-y-1.5">
-            {appNavItems.map(({ label, to, icon: Icon }) => {
+            {appNavItems.map(({ application }) => {
+              const identity = APPLICATION_IDENTITIES[application];
+              const { label, route: to } = identity;
               const active = activeSidebarTo(to);
 
               return (
@@ -577,49 +565,76 @@ function AppShellInner({
                   title={sidebarCollapsed ? label : undefined}
                   aria-label={sidebarCollapsed ? label : undefined}
                   aria-current={active ? "page" : undefined}
-                  className={`group relative flex h-10 items-center overflow-hidden rounded-xl border transition-all duration-200 ${
-                    sidebarCollapsed ? "justify-center" : "gap-2.5 px-2.5"
-                  } ${
+                  className={cn(
+                    "group relative flex h-10 items-center overflow-hidden rounded-2xl border transition-[gap,padding,background-color,border-color,color,box-shadow,filter] duration-[250ms] ease-out",
+                    sidebarCollapsed ? "justify-center" : "gap-2.5 px-2.5",
                     active
-                      ? "border-secondary-accent/20 bg-secondary-accent/10 text-secondary-accent shadow-[0_3px_16px_color-mix(in_oklch,var(--secondary-accent)_8%,transparent)]"
-                      : "border-transparent hover:border-secondary-accent/15 hover:bg-secondary-accent/5 hover:text-secondary-accent-foreground"
-                  }`}
+                      ? [
+                          identity.theme.surface,
+                          identity.theme.border,
+                          identity.theme.foreground,
+                          identity.theme.glow,
+                        ]
+                      : [
+                          "border-transparent text-muted-foreground",
+                          identity.theme.hover,
+                        ],
+                  )}
                 >
                   {active && (
                     <>
-                      <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-secondary-accent shadow-[0_0_8px_color-mix(in_oklch,var(--secondary-accent)_70%,transparent)]" />
-                      <span className="absolute inset-0 bg-gradient-to-r from-secondary-accent/7 via-secondary-accent/2 to-transparent" />
+                      <span
+                        className={cn(
+                          "absolute inset-y-2 left-0 w-0.5 rounded-full",
+                          identity.theme.dot,
+                          identity.theme.glow,
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "absolute inset-0 bg-gradient-to-r opacity-40",
+                          identity.theme.gradient,
+                        )}
+                      />
                     </>
                   )}
 
-                  <span
-                    className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border shadow-md transition-all duration-200 ${
+                  <ApplicationIcon
+                    application={application}
+                    size="xs"
+                    className={`relative z-10 transition-all duration-200 group-hover:scale-105 ${
                       active
-                        ? "border-secondary-accent/25 bg-secondary-accent/10 text-secondary-accent"
-                        : "border-sidebar-border bg-sidebar-accent/60 text-muted-foreground group-hover:border-secondary-accent/15 group-hover:bg-secondary-accent/5 group-hover:text-secondary-accent"
+                        ? "opacity-100"
+                        : "opacity-75 group-hover:opacity-100"
+                    }`}
+                  />
+
+                  <span
+                    aria-hidden={sidebarCollapsed}
+                    className={`relative z-10 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-200 ease-out ${
+                      sidebarCollapsed
+                        ? "max-w-0 -translate-x-1 opacity-0"
+                        : "max-w-40 translate-x-0 opacity-100"
                     }`}
                   >
-                    <Icon
-                      size={15}
-                      className="transition-transform duration-200 group-hover:scale-105"
-                    />
-                  </span>
-
-                  {!sidebarCollapsed && (
-                    <span className="relative z-10 flex min-w-0 flex-1 items-center justify-between">
-                      <span
-                        className={`truncate text-[13px] ${
-                          active ? "font-semibold" : "font-medium"
-                        }`}
-                      >
-                        {label}
-                      </span>
-
-                      {active && (
-                        <span className="ml-2 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary-accent shadow-[0_0_6px_color-mix(in_oklch,var(--secondary-accent)_70%,transparent)]" />
-                      )}
+                    <span
+                      className={`truncate text-[13px] ${
+                        active ? "font-semibold" : "font-medium"
+                      }`}
+                    >
+                      {label}
                     </span>
-                  )}
+
+                    {active && (
+                      <span
+                        className={cn(
+                          "ml-2 h-1.5 w-1.5 shrink-0 rounded-full",
+                          identity.theme.dot,
+                          identity.theme.glow,
+                        )}
+                      />
+                    )}
+                  </span>
                 </Link>
               );
             })}
@@ -627,74 +642,123 @@ function AppShellInner({
 
           {auth.developerAuthorized && auth.developerModeEnabled && (
             <div className="mt-auto border-t border-sidebar-border pt-4">
-              {!sidebarCollapsed && (
-                <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60">
+              <div className="mb-2 h-4 px-2">
+                <span
+                  aria-hidden={sidebarCollapsed}
+                  className={`block text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60 transition-[opacity,transform] duration-150 ease-out ${
+                    sidebarCollapsed
+                      ? "-translate-x-1 opacity-0"
+                      : "translate-x-0 opacity-100"
+                  }`}
+                >
                   Developer
-                </div>
-              )}
+                </span>
+              </div>
 
               <Link
                 to="/developer/events"
                 onClick={() => setMobileMenu(false)}
-                title={sidebarCollapsed ? "Errors & logs" : undefined}
-                aria-label={sidebarCollapsed ? "Errors & logs" : undefined}
+                title={
+                  sidebarCollapsed
+                    ? APPLICATION_IDENTITIES.developer.label
+                    : undefined
+                }
+                aria-label={
+                  sidebarCollapsed
+                    ? APPLICATION_IDENTITIES.developer.label
+                    : undefined
+                }
                 aria-current={developerEventsActive ? "page" : undefined}
-                className={`group relative flex h-10 items-center overflow-hidden rounded-xl border transition-all duration-200 ${
-                  sidebarCollapsed ? "justify-center" : "gap-2.5 px-2.5"
-                } ${
+                className={cn(
+                  "group relative flex h-10 items-center overflow-hidden rounded-2xl border transition-[gap,padding,background-color,border-color,color,box-shadow,filter] duration-[250ms] ease-out",
+                  sidebarCollapsed ? "justify-center" : "gap-2.5 px-2.5",
                   developerEventsActive
-                    ? "border-secondary-accent/20 bg-secondary-accent/10 text-secondary-accent shadow-[0_3px_16px_color-mix(in_oklch,var(--secondary-accent)_8%,transparent)]"
-                    : "border-transparent hover:border-secondary-accent/15 hover:bg-secondary-accent/5 hover:text-secondary-accent-foreground"
-                }`}
+                    ? [
+                        APPLICATION_IDENTITIES.developer.theme.surface,
+                        APPLICATION_IDENTITIES.developer.theme.border,
+                        APPLICATION_IDENTITIES.developer.theme.foreground,
+                        APPLICATION_IDENTITIES.developer.theme.glow,
+                      ]
+                    : [
+                        "border-transparent text-muted-foreground",
+                        APPLICATION_IDENTITIES.developer.theme.hover,
+                      ],
+                )}
               >
                 {developerEventsActive && (
                   <>
-                    <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-secondary-accent shadow-[0_0_8px_color-mix(in_oklch,var(--secondary-accent)_70%,transparent)]" />
-                    <span className="absolute inset-0 bg-gradient-to-r from-secondary-accent/7 via-secondary-accent/2 to-transparent" />
+                    <span
+                      className={cn(
+                        "absolute inset-y-2 left-0 w-0.5 rounded-full",
+                        APPLICATION_IDENTITIES.developer.theme.dot,
+                        APPLICATION_IDENTITIES.developer.theme.glow,
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "absolute inset-0 bg-gradient-to-r opacity-40",
+                        APPLICATION_IDENTITIES.developer.theme.gradient,
+                      )}
+                    />
                   </>
                 )}
 
-                <span
-                  className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border shadow-md transition-all duration-200 ${
+                <ApplicationIcon
+                  application="developer"
+                  size="xs"
+                  className={`relative z-10 transition-all duration-200 group-hover:scale-105 ${
                     developerEventsActive
-                      ? "border-secondary-accent/25 bg-secondary-accent/10 text-secondary-accent"
-                      : "border-sidebar-border bg-sidebar-accent/60 text-muted-foreground group-hover:border-secondary-accent/15 group-hover:bg-secondary-accent/5 group-hover:text-secondary-accent"
+                      ? "opacity-100"
+                      : "opacity-75 group-hover:opacity-100"
+                  }`}
+                />
+
+                <span
+                  aria-hidden={sidebarCollapsed}
+                  className={`relative z-10 flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-200 ease-out ${
+                    sidebarCollapsed
+                      ? "max-w-0 -translate-x-1 opacity-0"
+                      : "max-w-40 translate-x-0 opacity-100"
                   }`}
                 >
-                  <Bug
-                    size={15}
-                    className="transition-transform duration-200 group-hover:scale-105"
-                  />
-                </span>
-
-                {!sidebarCollapsed && (
-                  <span className="relative z-10 flex min-w-0 flex-1 items-center justify-between">
-                    <span
-                      className={`truncate text-[13px] ${
-                        developerEventsActive ? "font-semibold" : "font-medium"
-                      }`}
-                    >
-                      Errors &amp; logs
-                    </span>
-
-                    {developerEventsActive && (
-                      <span className="ml-2 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary-accent shadow-[0_0_6px_color-mix(in_oklch,var(--secondary-accent)_70%,transparent)]" />
-                    )}
+                  <span
+                    className={`truncate text-[13px] ${
+                      developerEventsActive ? "font-semibold" : "font-medium"
+                    }`}
+                  >
+                    {APPLICATION_IDENTITIES.developer.label}
                   </span>
-                )}
+
+                  {developerEventsActive && (
+                    <span
+                      className={cn(
+                        "ml-2 h-1.5 w-1.5 shrink-0 rounded-full",
+                        APPLICATION_IDENTITIES.developer.theme.dot,
+                        APPLICATION_IDENTITIES.developer.theme.glow,
+                      )}
+                    />
+                  )}
+                </span>
               </Link>
             </div>
           )}
         </nav>
 
         <div
-          className={`group relative overflow-hidden rounded-lg border border-sidebar-border bg-sidebar-accent/30 shadow-lg transition-all duration-200 hover:border-secondary-accent/15 hover:bg-secondary-accent/5 ${
+          className={cn(
+            "group relative overflow-hidden rounded-lg border border-sidebar-border bg-sidebar-accent/30 shadow-lg",
+            APPLICATION_IDENTITIES.momentum.theme.hover,
             sidebarCollapsed
               ? "flex h-12 items-center justify-center"
-              : "px-3 py-2"
-          }`}
+              : "px-3 py-2",
+          )}
         >
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-secondary-accent/5 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-200 group-hover:opacity-20",
+              APPLICATION_IDENTITIES.momentum.theme.gradient,
+            )}
+          />
           <UserMenu collapsed={sidebarCollapsed} />
         </div>
       </aside>
@@ -710,7 +774,7 @@ function AppShellInner({
 
       {/* ── Main content area ───────────────────────────────────────────── */}
       <main
-        className={`min-w-0 flex-1 transition-all duration-200 ${
+        className={`min-w-0 flex-1 transition-[padding-left] duration-[250ms] ease-out will-change-[padding-left] ${
           sidebarCollapsed ? "md:pl-14" : "md:pl-56"
         }`}
       >
@@ -727,14 +791,10 @@ function AppShellInner({
           </Button>
         </div>
 
-        {/* Sub-app or dashboard header */}
-        {isDeveloperRoute ? (
-          <DeveloperHeader pageActions={pageActions} />
-        ) : subApp === "ledger" || subApp === "stride" ? (
-          <SubAppHeader subApp={subApp} pageActions={pageActions} />
-        ) : (
-          <DashboardHeader pageActions={pageActions} />
-        )}
+        <ApplicationHeader
+          application={headerApplication}
+          pageActions={pageActions}
+        />
 
         {/* Page content */}
         <div className="min-h-[calc(100vh-4rem)] bg-dot-pattern p-4 md:p-6">
@@ -796,14 +856,14 @@ export function PageIntro({
     <div className="animate-fade-up flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         {eyebrow && (
-          <p className="mb-2 text-sm font-medium text-secondary-accent">
-            {eyebrow}
-          </p>
+          <p className="text-sm font-medium text-secondary-accent">{eyebrow}</p>
         )}
-        <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+        <h2 className="text-xl font-bold tracking-tight md:text-2xl">
           {title}
         </h2>
-        <p className="mt-2 max-w-2xl text-muted-foreground">{description}</p>
+        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+          {description}
+        </p>
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

@@ -7,6 +7,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from momentum.ledger.domain.models import CommitmentCategory
 from momentum.ledger.repositories.entry_repository import EntryRepository
 from momentum.ledger.repositories.task_repository import TaskRepository
 from momentum.ledger.services.task_service import TaskService
@@ -182,7 +183,44 @@ class TestTaskPersistence:
         assert fetched.id == created.id
         assert fetched.name == "Exercise"
         assert fetched.cutoff_message == "30 min"
+        assert fetched.category == CommitmentCategory.HABITS_DISCIPLINE
         assert fetched.is_active
+
+    def test_create_and_update_category(
+        self,
+        task_repo: TaskRepository,
+    ) -> None:
+        created = task_repo.create(
+            "Reading",
+            "Ten pages",
+            CommitmentCategory.READING_KNOWLEDGE,
+        )
+
+        updated = task_repo.update(
+            created.id,
+            created.name,
+            created.cutoff_message,
+            CommitmentCategory.LEARNING_GROWTH,
+        )
+
+        assert created.category == CommitmentCategory.READING_KNOWLEDGE
+        assert updated.category == CommitmentCategory.LEARNING_GROWTH
+
+    def test_category_constraint_rejects_invalid_value(
+        self,
+        db: Database,
+        task_repo: TaskRepository,
+    ) -> None:
+        created = task_repo.create(
+            "Exercise",
+            "30 min",
+        )
+
+        with pytest.raises(sqlite3.IntegrityError):
+            db.conn.execute(
+                "UPDATE tasks SET category = ? WHERE id = ?",
+                ("invalid_category", created.id),
+            )
 
     def test_get_by_id_returns_none_for_missing_task(
         self,
@@ -479,6 +517,30 @@ class TestEntryPersistence:
         assert updated.completed is True
         assert updated.created_at == original.created_at
         assert updated.updated_at >= original.updated_at
+
+    def test_upsert_many_creates_and_updates_entries(
+        self,
+        task_repo: TaskRepository,
+        entry_repo: EntryRepository,
+    ) -> None:
+        exercise = task_repo.create("Exercise", "30 min")
+        reading = task_repo.create("Read", "20 pages")
+        original = entry_repo.upsert(exercise.id, TODAY, False)
+
+        entries = entry_repo.upsert_many(
+            TODAY,
+            [
+                (exercise.id, True),
+                (reading.id, False),
+            ],
+        )
+
+        assert [(entry.task_id, entry.completed) for entry in entries] == [
+            (exercise.id, True),
+            (reading.id, False),
+        ]
+        assert entries[0].created_at == original.created_at
+        assert entries[0].updated_at >= original.updated_at
 
     def test_upsert_same_task_date_keeps_one_row(
         self,

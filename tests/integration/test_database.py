@@ -145,6 +145,86 @@ class TestDatabase:
         finally:
             database.close()
 
+    def test_connect_upgrades_previous_schema_with_category_backfill(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """The category migration preserves tasks and entries and uses the legacy fallback."""
+        db_path = tmp_path / "momentum-v6.db"
+        connection = sqlite3.connect(db_path)
+
+        try:
+            connection.execute(
+                """
+                CREATE TABLE schema_migrations (
+                    version     INTEGER PRIMARY KEY,
+                    description TEXT NOT NULL,
+                    applied_at  TEXT NOT NULL
+                )
+                """
+            )
+            for migration in MIGRATIONS[:-1]:
+                for statement in migration.statements:
+                    connection.execute(statement)
+                connection.execute(
+                    """
+                    INSERT INTO schema_migrations (version, description, applied_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    (migration.version, migration.description, "2026-10-01T00:00:00+00:00"),
+                )
+
+            cursor = connection.execute(
+                """
+                INSERT INTO tasks (name, cutoff_message, created_at)
+                VALUES (?, ?, ?)
+                """,
+                ("Preserved task", "Keep me", "2026-10-01T00:00:00+00:00"),
+            )
+            task_id = cursor.lastrowid
+            assert task_id is not None
+            connection.execute(
+                """
+                INSERT INTO daily_entries (task_id, date, completed, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    task_id,
+                    "2026-10-01",
+                    1,
+                    "2026-10-01T00:00:00+00:00",
+                    "2026-10-01T00:00:00+00:00",
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        database = Database(db_path)
+        database.connect()
+
+        try:
+            task = database.conn.execute(
+                "SELECT name, cutoff_message, category FROM tasks WHERE id = ?",
+                (task_id,),
+            ).fetchone()
+            entry = database.conn.execute(
+                "SELECT completed FROM daily_entries WHERE task_id = ? AND date = ?",
+                (task_id, "2026-10-01"),
+            ).fetchone()
+            versions = [
+                row[0]
+                for row in database.conn.execute(
+                    "SELECT version FROM schema_migrations ORDER BY version"
+                )
+            ]
+
+            assert tuple(task) == ("Preserved task", "Keep me", "habits_discipline")
+            assert entry["completed"] == 1
+            assert versions == [migration.version for migration in MIGRATIONS]
+        finally:
+            database.close()
+
     def test_connect_is_idempotent(self, tmp_path: Path) -> None:
         database = Database(tmp_path / "momentum.db")
 
@@ -241,6 +321,17 @@ class TestDatabase:
                     version     INTEGER PRIMARY KEY,
                     description TEXT NOT NULL,
                     applied_at  TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL COLLATE NOCASE,
+                    cutoff_message TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    archived_at TEXT
                 )
                 """
             )

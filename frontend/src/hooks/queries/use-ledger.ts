@@ -7,6 +7,8 @@
  *   ["ledger", "history", { from, to, taskName }]
  *   ["ledger", "stats", { days }]
  *   ["ledger", "weekly-stats", weekCount]
+ *   ["ledger", "insights", "summary", params]
+ *   ["ledger", "insights", "trend", params]
  *
  * Rates from the backend are 0..1 ratios. This file does not convert them.
  * Presentation conversion (ratio × 100) happens only in components.
@@ -19,10 +21,16 @@ import {
   type UseMutationResult,
 } from "@tanstack/react-query";
 import { ledgerApi } from "@/api/ledger";
+import { DASHBOARD_QUERY_KEY_BASE } from "@/hooks/queries/use-dashboard";
 import type {
+  DailyEntryBatchRecordRequest,
   DailyEntryRecordRequest,
+  DailyEntryResponse,
   DayEntryResponse,
   HistoryEntryResponse,
+  InsightsSummaryResponse,
+  InsightsTrendMode,
+  InsightsTrendResponse,
   OverallStatsResponse,
   TaskCreateRequest,
   TaskResponse,
@@ -43,6 +51,18 @@ export const ledgerKeys = {
   stats: (days: number) => ["ledger", "stats", { days }] as const,
   weeklyStats: (weekCount: number) =>
     ["ledger", "weekly-stats", weekCount] as const,
+  insights: ["ledger", "insights"] as const,
+  insightsSummary: (params: {
+    commitmentIds: readonly number[];
+    startDate: string;
+    endDate: string;
+  }) => ["ledger", "insights", "summary", params] as const,
+  insightsTrend: (params: {
+    commitmentIds: readonly number[];
+    referenceDate: string;
+    year: number;
+    mode: InsightsTrendMode;
+  }) => ["ledger", "insights", "trend", params] as const,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -98,14 +118,18 @@ export function useLedgerToday(date: string) {
 // ---------------------------------------------------------------------------
 
 /** Fetch historical YES/NO entries for a date range / task filter. */
-export function useLedgerHistory(params: {
-  from?: string;
-  to?: string;
-  taskName?: string;
-}) {
+export function useLedgerHistory(
+  params: {
+    from?: string;
+    to?: string;
+    taskName?: string;
+  },
+  enabled = true,
+) {
   return useQuery<HistoryEntryResponse[], Error>({
     queryKey: ledgerKeys.history(params),
     queryFn: () => ledgerApi.getHistory(params),
+    enabled,
   });
 }
 
@@ -161,6 +185,39 @@ export function useLedgerWeeklyStats(weekCount = 12) {
   });
 }
 
+/** Fetch the filtered, backend-authoritative Ledger Insights summary. */
+export function useLedgerInsightsSummary(
+  params: {
+    commitmentIds: readonly number[];
+    startDate: string;
+    endDate: string;
+  },
+  enabled = true,
+) {
+  return useQuery<InsightsSummaryResponse, Error>({
+    queryKey: ledgerKeys.insightsSummary(params),
+    queryFn: () => ledgerApi.getInsightsSummary(params),
+    enabled: enabled && params.commitmentIds.length > 0,
+  });
+}
+
+/** Fetch backend-aggregated calendar balance points per selected commitment. */
+export function useLedgerInsightsTrend(
+  params: {
+    commitmentIds: readonly number[];
+    referenceDate: string;
+    year: number;
+    mode: InsightsTrendMode;
+  },
+  enabled = true,
+) {
+  return useQuery<InsightsTrendResponse, Error>({
+    queryKey: ledgerKeys.insightsTrend(params),
+    queryFn: () => ledgerApi.getInsightsTrend(params),
+    enabled: enabled && params.commitmentIds.length > 0,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Mutations
 // ---------------------------------------------------------------------------
@@ -193,8 +250,66 @@ export function useRecordEntry(todayDate: string) {
         queryKey: ["ledger", "weekly-stats"],
         exact: false,
       });
+      void queryClient.invalidateQueries({
+        queryKey: ledgerKeys.insights,
+        exact: false,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: [DASHBOARD_QUERY_KEY_BASE],
+      });
     },
   }) as UseMutationResult<void, Error, DailyEntryRecordRequest>;
+}
+
+/**
+ * Record all selected YES/NO entries for a date in one atomic request.
+ * Updates today's cached entries and invalidates every affected aggregate.
+ */
+export function useRecordEntries(todayDate: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<DailyEntryResponse[], Error, DailyEntryBatchRecordRequest>(
+    {
+      mutationFn: (payload) => ledgerApi.recordEntries(payload),
+      onSuccess: (recordedEntries) => {
+        const entriesByTaskId = new Map(
+          recordedEntries.map((entry) => [entry.task_id, entry]),
+        );
+
+        queryClient.setQueryData<DayEntryResponse[]>(
+          ledgerKeys.today(todayDate),
+          (current) =>
+            current?.map((pair) => ({
+              ...pair,
+              entry: entriesByTaskId.get(pair.task.id) ?? pair.entry,
+            })),
+        );
+
+        void queryClient.invalidateQueries({
+          queryKey: ledgerKeys.today(todayDate),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["ledger", "history"],
+          exact: false,
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["ledger", "stats"],
+          exact: false,
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["ledger", "weekly-stats"],
+          exact: false,
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ledgerKeys.insights,
+          exact: false,
+        });
+        void queryClient.invalidateQueries({
+          queryKey: [DASHBOARD_QUERY_KEY_BASE],
+        });
+      },
+    },
+  );
 }
 
 /**
@@ -208,13 +323,10 @@ export function useCreateTask() {
     mutationFn: (payload) => ledgerApi.createTask(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: ["ledger", "tasks"],
-        exact: false,
+        queryKey: ledgerKeys.all,
       });
-      // A new task may affect today's list
       void queryClient.invalidateQueries({
-        queryKey: ["ledger", "today"],
-        exact: false,
+        queryKey: [DASHBOARD_QUERY_KEY_BASE],
       });
     },
   });
@@ -236,12 +348,10 @@ export function useUpdateTask() {
       ledgerApi.updateTask(taskName, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: ["ledger", "tasks"],
-        exact: false,
+        queryKey: ledgerKeys.all,
       });
       void queryClient.invalidateQueries({
-        queryKey: ["ledger", "today"],
-        exact: false,
+        queryKey: [DASHBOARD_QUERY_KEY_BASE],
       });
     },
   });
@@ -258,16 +368,10 @@ export function useArchiveTask() {
     mutationFn: (taskName) => ledgerApi.archiveTask(taskName),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: ["ledger", "tasks"],
-        exact: false,
+        queryKey: ledgerKeys.all,
       });
       void queryClient.invalidateQueries({
-        queryKey: ["ledger", "today"],
-        exact: false,
-      });
-      void queryClient.invalidateQueries({
-        queryKey: ["ledger", "stats"],
-        exact: false,
+        queryKey: [DASHBOARD_QUERY_KEY_BASE],
       });
     },
   });
@@ -284,16 +388,10 @@ export function useRestoreTask() {
     mutationFn: (taskId) => ledgerApi.restoreTask(taskId),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: ["ledger", "tasks"],
-        exact: false,
+        queryKey: ledgerKeys.all,
       });
       void queryClient.invalidateQueries({
-        queryKey: ["ledger", "today"],
-        exact: false,
-      });
-      void queryClient.invalidateQueries({
-        queryKey: ["ledger", "stats"],
-        exact: false,
+        queryKey: [DASHBOARD_QUERY_KEY_BASE],
       });
     },
   });

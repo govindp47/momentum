@@ -2,17 +2,24 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Minus,
   X,
 } from "lucide-react";
 import { AppShell, PageIntro } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { iconMap, getTaskIcon, type Status } from "@/lib/lifeledger";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { getCommitmentCategoryMetadata } from "@/lib/commitment-categories";
+import type { Status } from "@/lib/lifeledger";
 import {
   useLedgerHistory,
+  useLedgerAllTasks,
   useLedgerTasks,
   formatLocalDate,
 } from "@/hooks/queries/use-ledger";
@@ -65,12 +72,14 @@ function HistoryPage() {
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string>(toDateStr(today));
   const [filter, setFilter] = useState("all");
+  const [commitmentPickerOpen, setCommitmentPickerOpen] = useState(false);
 
   const monthFrom = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-01`;
   const lastDay = new Date(viewYear, viewMonth + 1, 0).getDate();
   const monthTo = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
   const { data: activeTasks } = useLedgerTasks();
+  const { data: allTasks } = useLedgerAllTasks();
 
   const {
     data: historyEntries,
@@ -80,13 +89,12 @@ function HistoryPage() {
     refetch: refetchHistory,
   } = useLedgerHistory({ from: monthFrom, to: monthTo });
 
-  const filteredTaskName = useMemo(() => {
+  const selectedTask = useMemo(() => {
     if (filter === "all") return undefined;
 
-    const id = Number(filter);
-
-    return (activeTasks ?? []).find((task) => task.id === id)?.name;
-  }, [filter, activeTasks]);
+    return (allTasks ?? []).find((task) => task.id === Number(filter));
+  }, [filter, allTasks]);
+  const filteredTaskName = selectedTask?.name;
 
   const dayStatsMap = useMemo((): Map<string, DayStats> => {
     const map = new Map<string, DayStats>();
@@ -179,18 +187,92 @@ function HistoryPage() {
             eyebrow={monthName.toUpperCase()}
             title="Your days, in context."
             description="Recorded, missed, and untouched entries remain visually distinct."
+            action={
+              <div className="flex items-center gap-1 rounded-3xl border border-border/70 bg-card/80 p-1 shadow-sm backdrop-blur-sm">
+                <Popover
+                  open={commitmentPickerOpen}
+                  onOpenChange={setCommitmentPickerOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Filter history by commitment"
+                      className={`flex h-7 w-36 items-center gap-1.5 rounded-2xl px-3 text-xs font-medium transition-colors ${
+                        filter === "all"
+                          ? "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                          : "bg-primary text-primary-foreground shadow-sm"
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">
+                        {selectedTask?.name ?? "All commitments"}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    className="w-[min(9rem,calc(100vw-2rem))] rounded-3xl p-2"
+                  >
+                    <div className="max-h-64 space-y-2 overflow-y-auto">
+                      <button
+                        type="button"
+                        aria-pressed={filter === "all"}
+                        onClick={() => {
+                          setFilter("all");
+                          setCommitmentPickerOpen(false);
+                        }}
+                        className={`flex w-full items-center rounded-2xl border p-2 text-left text-[11px] font-semibold transition-colors ${
+                          filter === "all"
+                            ? "border-primary/30 bg-primary/10 text-primary"
+                            : "border-border/60 bg-card/60 hover:bg-accent/40"
+                        }`}
+                      >
+                        All commitments
+                      </button>
+                      {(allTasks ?? []).map((task) => {
+                        const category = getCommitmentCategoryMetadata(
+                          task.category,
+                        );
+                        const selected = filter === String(task.id);
+
+                        return (
+                          <button
+                            key={task.id}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => {
+                              setFilter(String(task.id));
+                              setCommitmentPickerOpen(false);
+                            }}
+                            className={`flex w-full items-center rounded-2xl border p-2 text-left text-[11px] font-semibold transition-colors ${
+                              selected
+                                ? `${category.borderClass} ${category.backgroundClass} ${category.badgeTextClass}`
+                                : "border-border/60 bg-card/60 hover:bg-accent/40"
+                            }`}
+                          >
+                            <span className="min-w-0 truncate">
+                              {task.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            }
           />
         </section>
 
         {/* ── Controls ────────────────────────────────────────────────── */}
-        <section className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-1">
+        <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="inline-flex items-center gap-1 overflow-hidden rounded-3xl border border-border/70 bg-card/80 p-1 shadow-sm backdrop-blur-sm">
             <Button
               variant="ghost"
               size="icon"
               aria-label="Previous month"
               onClick={prevMonth}
-              className="h-9 w-9 rounded-lg"
+              className="h-8 w-8 rounded-lg"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -205,35 +287,11 @@ function HistoryPage() {
               aria-label="Next month"
               disabled={!canGoNext}
               onClick={nextMonth}
-              className="h-9 w-9 rounded-lg"
+              className="h-8 w-8 rounded-lg"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-
-          <label className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Commitment
-            <div className="relative">
-              <select
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                className="h-9 min-w-44 appearance-none rounded-lg border border-border/70 bg-background/60 py-2 pl-3 pr-9 text-xs font-medium normal-case tracking-normal text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/10"
-              >
-                <option value="all">All commitments</option>
-
-                {(activeTasks ?? []).map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.name}
-                  </option>
-                ))}
-              </select>
-
-              <ChevronDown
-                className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
-                aria-hidden="true"
-              />
-            </div>
-          </label>
         </section>
 
         {/* ── Error state ─────────────────────────────────────────────── */}
@@ -252,7 +310,7 @@ function HistoryPage() {
             <Button
               variant="outline"
               size="sm"
-              className="mt-3 rounded-lg"
+              className="mt-3 rounded-2xl"
               onClick={() => void refetchHistory()}
             >
               Try again
@@ -263,7 +321,7 @@ function HistoryPage() {
         {/* ── Calendar + selected day ─────────────────────────────────── */}
         <section className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.72fr)]">
           {/* Calendar */}
-          <div className="overflow-hidden rounded-xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur-sm md:p-5">
+          <div className="overflow-hidden rounded-4xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur-sm md:p-5">
             <div className="grid grid-cols-7 border-b border-border/70 pb-3">
               {WEEK_LABELS.map((day) => (
                 <div
@@ -358,7 +416,7 @@ function HistoryPage() {
           </div>
 
           {/* Detail panel */}
-          <aside className="overflow-hidden rounded-xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm">
+          <aside className="overflow-hidden rounded-4xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm">
             <div className="border-b border-border/70 p-5">
               <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-primary">
                 {selectedDateObject
@@ -368,7 +426,7 @@ function HistoryPage() {
                   .toUpperCase()}
               </p>
 
-              <h3 className="mt-1 text-xl font-bold tracking-tight">
+              <h3 className="text-xl font-bold tracking-tight">
                 {selectedDateObject.toLocaleDateString("en-US", {
                   month: "long",
                   day: "numeric",
@@ -454,7 +512,10 @@ function HistoryPage() {
                         ? "yes"
                         : "no";
 
-                    const Icon = iconMap[getTaskIcon(item.task.name)];
+                    const category = getCommitmentCategoryMetadata(
+                      item.task.category,
+                    );
+                    const Icon = category.icon;
 
                     const Mark =
                       status === "yes" ? Check : status === "no" ? X : Minus;
@@ -466,13 +527,6 @@ function HistoryPage() {
                           ? "text-status-no"
                           : "text-muted-foreground";
 
-                    const iconStyle =
-                      status === "yes"
-                        ? "border-status-yes/30 bg-status-yes/10 text-status-yes"
-                        : status === "no"
-                          ? "border-status-no/30 bg-status-no/10 text-status-no"
-                          : "border-border/70 bg-secondary/70 text-muted-foreground";
-
                     return (
                       <div
                         key={item.task.id}
@@ -483,14 +537,23 @@ function HistoryPage() {
                         }`}
                       >
                         <div
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm ${iconStyle}`}
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-3xl border shadow-sm ${category.backgroundClass} ${category.borderClass}`}
                         >
-                          <Icon className="h-3.5 w-3.5" />
+                          <Icon
+                            className={`h-3.5 w-3.5 ${category.iconClass}`}
+                          />
                         </div>
 
-                        <span className="min-w-0 flex-1 truncate text-xs font-semibold">
-                          {item.task.name}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-semibold">
+                            {item.task.name}
+                          </span>
+                          <span
+                            className={`mt-0.5 block truncate text-[9px] font-medium ${category.badgeTextClass}`}
+                          >
+                            {category.label}
+                          </span>
+                        </div>
 
                         <span
                           className={`flex shrink-0 items-center gap-1 text-[9px] font-bold uppercase tracking-[0.06em] ${statusColor}`}

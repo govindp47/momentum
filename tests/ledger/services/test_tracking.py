@@ -9,8 +9,11 @@ import pytest
 from momentum.ledger.domain.errors import (
     ArchivedTaskError,
     InvalidDateError,
+    InvalidTaskError,
     TaskNotFoundError,
 )
+from momentum.ledger.repositories.entry_repository import EntryRepository
+from momentum.ledger.repositories.task_repository import TaskRepository
 from momentum.ledger.services.stats_service import StatsService
 from momentum.ledger.services.task_service import TaskService
 from momentum.ledger.services.tracking_service import TrackingService
@@ -92,6 +95,73 @@ class TestRecordEntry:
 
         assert entry.task_id == task.id
         assert entry.completed is True
+
+    def test_record_entries_records_all_decisions(
+        self,
+        task_svc: TaskService,
+        tracking_svc: TrackingService,
+    ) -> None:
+        exercise = task_svc.create_task("Exercise", "30 min")
+        reading = task_svc.create_task("Read", "20 pages")
+
+        entries = tracking_svc.record_entries(
+            TODAY,
+            [
+                (exercise.id, True),
+                (reading.id, False),
+            ],
+        )
+
+        assert [(entry.task_id, entry.completed) for entry in entries] == [
+            (exercise.id, True),
+            (reading.id, False),
+        ]
+
+    def test_record_entries_rejects_duplicate_tasks(
+        self,
+        task_svc: TaskService,
+        tracking_svc: TrackingService,
+    ) -> None:
+        task = task_svc.create_task("Exercise", "30 min")
+
+        with pytest.raises(InvalidTaskError, match="only appear once"):
+            tracking_svc.record_entries(
+                TODAY,
+                [(task.id, True), (task.id, False)],
+            )
+
+    def test_record_entries_rolls_back_repository_failure(
+        self,
+        db: Database,
+        task_svc: TaskService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        exercise = task_svc.create_task("Exercise", "30 min")
+        reading = task_svc.create_task("Read", "20 pages")
+        entry_repo = EntryRepository(db.conn)
+        tracking_svc = TrackingService(
+            TaskRepository(db.conn),
+            entry_repo,
+            db.transaction,
+        )
+
+        def fail_after_first_write(
+            entry_date: date,
+            entries: list[tuple[int, bool]],
+        ) -> list[object]:
+            task_id, completed = entries[0]
+            entry_repo.upsert(task_id, entry_date, completed)
+            raise RuntimeError("simulated batch failure")
+
+        monkeypatch.setattr(entry_repo, "upsert_many", fail_after_first_write)
+
+        with pytest.raises(RuntimeError, match="simulated batch failure"):
+            tracking_svc.record_entries(
+                TODAY,
+                [(exercise.id, True), (reading.id, False)],
+            )
+
+        assert entry_repo.list_for_date(TODAY) == []
 
     def test_record_nonexistent_task_raises(
         self,

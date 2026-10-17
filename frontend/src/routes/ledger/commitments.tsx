@@ -19,7 +19,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { iconMap, getTaskIcon, type CommitmentIcon } from "@/lib/lifeledger";
+import {
+  COMMITMENT_CATEGORIES,
+  DEFAULT_COMMITMENT_CATEGORY,
+  commitmentCategoryMetadata,
+  getCommitmentCategoryMetadata,
+} from "@/lib/commitment-categories";
 import {
   useLedgerAllTasks,
   useCreateTask,
@@ -27,7 +32,11 @@ import {
   useArchiveTask,
   useRestoreTask,
 } from "@/hooks/queries/use-ledger";
-import type { TaskResponse } from "@/types/ledger";
+import type {
+  CommitmentCategory,
+  TaskCreateRequest,
+  TaskResponse,
+} from "@/types/ledger";
 import { ApiError } from "@/api/client";
 
 export const Route = createFileRoute("/ledger/commitments")({
@@ -49,51 +58,6 @@ export const Route = createFileRoute("/ledger/commitments")({
   }),
   component: CommitmentsPage,
 });
-
-const iconChoices: { value: CommitmentIcon; label: string }[] = [
-  { value: "exercise", label: "Exercise" },
-  { value: "learning", label: "Learning" },
-  { value: "reading", label: "Reading" },
-  { value: "work", label: "Work" },
-  { value: "social", label: "Social" },
-  { value: "project", label: "Project" },
-];
-
-const iconAccent: Record<
-  CommitmentIcon,
-  { icon: string; background: string; border: string }
-> = {
-  exercise: {
-    icon: "text-orange-500",
-    background: "bg-orange-500/10",
-    border: "border-orange-500/25",
-  },
-  learning: {
-    icon: "text-blue-500",
-    background: "bg-blue-500/10",
-    border: "border-blue-500/25",
-  },
-  reading: {
-    icon: "text-violet-500",
-    background: "bg-violet-500/10",
-    border: "border-violet-500/25",
-  },
-  work: {
-    icon: "text-amber-500",
-    background: "bg-amber-500/10",
-    border: "border-amber-500/25",
-  },
-  social: {
-    icon: "text-pink-500",
-    background: "bg-pink-500/10",
-    border: "border-pink-500/25",
-  },
-  project: {
-    icon: "text-emerald-500",
-    background: "bg-emerald-500/10",
-    border: "border-emerald-500/25",
-  },
-};
 
 function CommitmentsPage() {
   const {
@@ -152,7 +116,7 @@ function CommitmentsPage() {
     });
   };
 
-  const handleSave = (value: { name: string; cutoff_message: string }) => {
+  const handleSave = (value: TaskCreateRequest) => {
     setActionError(null);
 
     if (editing) {
@@ -241,7 +205,7 @@ function CommitmentsPage() {
             action={
               <Button
                 onClick={() => openEditor(null)}
-                className="rounded-lg shadow-sm"
+                className="rounded-3xl shadow-sm"
               >
                 <Plus className="h-4 w-4" />
                 New commitment
@@ -259,7 +223,7 @@ function CommitmentsPage() {
 
         {/* ── Commitment status tabs ──────────────────────────────────── */}
         <div
-          className="flex overflow-hidden rounded-xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm"
+          className="inline-flex overflow-hidden rounded-3xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm"
           role="tablist"
           aria-label="Commitment status"
         >
@@ -311,12 +275,11 @@ function CommitmentsPage() {
         </div>
 
         {/* ── Commitments ─────────────────────────────────────────────── */}
-        <section className="overflow-hidden rounded-xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm">
+        <section className="overflow-hidden rounded-4xl border border-border/70 bg-card/80 shadow-sm backdrop-blur-sm">
           {visible.length ? (
             visible.map((task, index) => {
-              const taskIcon = getTaskIcon(task.name);
-              const Icon = iconMap[taskIcon];
-              const accent = iconAccent[taskIcon];
+              const category = getCommitmentCategoryMetadata(task.category);
+              const Icon = category.icon;
 
               const isArchivePending =
                 archiveTask.isPending && archiveTask.variables === task.name;
@@ -335,9 +298,9 @@ function CommitmentsPage() {
                 >
                   <div className="flex min-w-0 items-start gap-3.5">
                     <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm transition-transform duration-200 group-hover:scale-[1.03] ${accent.background} ${accent.border}`}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-3xl border shadow-sm transition-transform duration-200 group-hover:scale-[1.03] ${category.backgroundClass} ${category.borderClass}`}
                     >
-                      <Icon className={`h-4 w-4 ${accent.icon}`} />
+                      <Icon className={`h-4 w-4 ${category.iconClass}`} />
                     </div>
 
                     <div className="min-w-0">
@@ -347,13 +310,9 @@ function CommitmentsPage() {
                         </h3>
 
                         <span
-                          className={`rounded-full border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.08em] ${
-                            task.is_active
-                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                              : "border-border/60 bg-secondary/60 text-muted-foreground"
-                          }`}
+                          className={`rounded-full border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.08em] ${category.backgroundClass} ${category.borderClass} ${category.badgeTextClass}`}
                         >
-                          {task.is_active ? "Active" : "Archived"}
+                          {category.label}
                         </span>
                       </div>
 
@@ -381,7 +340,7 @@ function CommitmentsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => openEditor(task)}
-                        className="rounded-lg border-border/70 bg-background/40 text-xs"
+                        className="rounded-2xl border-border/70 bg-background/40 text-xs"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                         Edit
@@ -397,7 +356,7 @@ function CommitmentsPage() {
                           ? handleArchive(task)
                           : handleRestore(task)
                       }
-                      className="rounded-lg border-border/70 bg-background/40 text-xs"
+                      className="rounded-2xl border-border/70 bg-background/40 text-xs"
                     >
                       {task.is_active ? (
                         <Archive className="h-3.5 w-3.5" />
@@ -444,6 +403,7 @@ function CommitmentsPage() {
         </section>
 
         <CommitmentDialog
+          key={open ? (editing?.id ?? "new") : "closed"}
           open={open}
           onOpenChange={(nextOpen) => {
             if (!nextOpen) setActionError(null);
@@ -471,20 +431,20 @@ function CommitmentDialog({
   onOpenChange: (open: boolean) => void;
   task: TaskResponse | null;
   isSaving: boolean;
-  onSave: (value: { name: string; cutoff_message: string }) => void;
+  onSave: (value: TaskCreateRequest) => void;
   errorMessage: string | null;
 }) {
-  const [name, setName] = useState("");
-  const [cutoffMessage, setCutoffMessage] = useState("");
-  const [icon, setIcon] = useState<CommitmentIcon>("project");
+  const [name, setName] = useState(task?.name ?? "");
+  const [cutoffMessage, setCutoffMessage] = useState(
+    task?.cutoff_message ?? "",
+  );
+  const [category, setCategory] = useState<CommitmentCategory>(
+    getCommitmentCategoryMetadata(task?.category).value ??
+      DEFAULT_COMMITMENT_CATEGORY,
+  );
+  const selectedCategory = commitmentCategoryMetadata[category];
 
   const initialize = (nextOpen: boolean) => {
-    if (nextOpen) {
-      setName(task?.name ?? "");
-      setCutoffMessage(task?.cutoff_message ?? "");
-      setIcon(task ? getTaskIcon(task.name) : "project");
-    }
-
     onOpenChange(nextOpen);
   };
 
@@ -496,13 +456,14 @@ function CommitmentDialog({
     onSave({
       name: name.trim(),
       cutoff_message: cutoffMessage.trim(),
+      category,
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={initialize}>
-      <DialogContent className="rounded-xl border-border/70 bg-card shadow-lg sm:max-w-lg">
-        <form onSubmit={submit} className="space-y-6">
+      <DialogContent className="rounded-4xl border-border/70 bg-card shadow-lg sm:max-w-lg sm:rounded-4xl">
+        <form onSubmit={submit} className="space-y-4">
           <DialogHeader>
             <DialogTitle className="text-base font-bold tracking-tight">
               {task ? "Edit commitment" : "New commitment"}
@@ -514,7 +475,7 @@ function CommitmentDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5">
+          <div className="space-y-3">
             <div className="space-y-2">
               <Label
                 htmlFor="commit-name"
@@ -529,7 +490,7 @@ function CommitmentDialog({
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="e.g. Morning walk"
-                className="h-10 rounded-lg border-border/70 bg-background/50 text-sm"
+                className="mt-1 h-8 rounded-xl border-border/70 bg-background/50 text-sm"
               />
             </div>
 
@@ -546,42 +507,51 @@ function CommitmentDialog({
                 value={cutoffMessage}
                 onChange={(event) => setCutoffMessage(event.target.value)}
                 placeholder="e.g. Walk outside for at least 20 minutes"
-                className="h-10 rounded-lg border-border/70 bg-background/50 text-sm"
+                className="mt-1 h-8 rounded-xl border-border/70 bg-background/50 text-sm"
               />
             </div>
 
             <fieldset>
-              <legend className="mb-2 text-[11px] font-bold uppercase tracking-[0.06em]">
-                Icon
+              <legend className="mt-1 text-[11px] font-bold uppercase tracking-[0.06em]">
+                Category
               </legend>
 
-              <p className="mb-3 text-[10px] text-muted-foreground">
-                Used to visually identify this commitment.
+              <p className="mb-2 text-[10px] text-muted-foreground">
+                Choose the area this commitment supports.
               </p>
 
-              <div className="grid grid-cols-3 gap-2">
-                {iconChoices.map((choice) => {
-                  const Icon = iconMap[choice.value];
-                  const accent = iconAccent[choice.value];
-                  const selected = icon === choice.value;
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                {COMMITMENT_CATEGORIES.map((value) => {
+                  const metadata = commitmentCategoryMetadata[value];
+                  const Icon = metadata.icon;
+                  const selected = category === value;
 
                   return (
                     <button
-                      key={choice.value}
+                      key={value}
                       type="button"
-                      onClick={() => setIcon(choice.value)}
-                      className={`flex h-16 flex-col items-center justify-center gap-1.5 rounded-lg border text-[10px] font-semibold transition-all duration-200 ${
+                      aria-pressed={selected}
+                      title={metadata.description}
+                      onClick={() => setCategory(value)}
+                      className={`flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-3xl border px-1 py-1 text-center text-[10px] font-semibold leading-tight transition-all duration-200 ${
                         selected
-                          ? `${accent.border} ${accent.background} ${accent.icon} shadow-sm`
+                          ? `${metadata.borderClass} ${metadata.backgroundClass} ${metadata.badgeTextClass} shadow-sm`
                           : "border-border/70 bg-background/30 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
                       }`}
                     >
                       <Icon className="h-4 w-4" />
-                      {choice.label}
+                      {metadata.label}
                     </button>
                   );
                 })}
               </div>
+
+              <p
+                className={`mt-3 rounded-2xl border px-2 py-1 text-xs leading-relaxed ${selectedCategory.backgroundClass} ${selectedCategory.borderClass} ${selectedCategory.badgeTextClass}`}
+              >
+                <span className="font-semibold">{selectedCategory.label}:</span>{" "}
+                {selectedCategory.description}
+              </p>
             </fieldset>
 
             {errorMessage && (
@@ -598,12 +568,12 @@ function CommitmentDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="rounded-lg"
+              className="rounded-3xl"
             >
               Cancel
             </Button>
 
-            <Button type="submit" disabled={isSaving} className="rounded-lg">
+            <Button type="submit" disabled={isSaving} className="rounded-3xl">
               {isSaving
                 ? "Saving…"
                 : task

@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, timedelta
 
-from momentum.ledger.domain.errors import TaskNotFoundError
+from momentum.ledger.domain.errors import InvalidDateError, InvalidTaskError, TaskNotFoundError
 from momentum.ledger.domain.models import (
+    InsightsCommitmentStats,
+    InsightsSummary,
+    InsightsTrend,
+    InsightsTrendMode,
+    InsightsTrendPoint,
+    InsightsTrendSeries,
     OverallStats,
     Task,
     TaskStats,
@@ -18,6 +25,7 @@ from momentum.ledger.domain.rules import (
     effective_period,
     streak_reference_date,
     validate_days,
+    validate_insights_date_range,
 )
 from momentum.ledger.repositories.entry_repository import EntryRepository
 from momentum.ledger.repositories.task_repository import TaskRepository
@@ -114,6 +122,105 @@ class StatsService:
             task=task,
             start_date=start_date,
             end_date=end_date,
+        )
+
+    def compute_insights_summary(
+        self,
+        task_ids: Sequence[int],
+        start_date: date,
+        end_date: date,
+    ) -> InsightsSummary:
+        """Calculate authoritative statistics for explicitly selected commitments.
+
+        ``days_with_any_entry`` is scoped to the selected commitments. Missing
+        calendar dates are never interpreted as not-completed entries.
+        """
+        calendar_days = validate_insights_date_range(start_date, end_date)
+        tasks = self._resolve_insights_tasks(task_ids)
+        counts, days_with_any_entry = self._entries.get_insights_summary_counts(
+            [task.id for task in tasks],
+            start_date,
+            end_date,
+        )
+        total_completed_days = sum(counts.get(task.id, (0, 0))[0] for task in tasks)
+        commitment_stats = tuple(
+            self._build_insights_commitment_stats(
+                task,
+                counts.get(task.id, (0, 0)),
+                total_completed_days,
+            )
+            for task in tasks
+        )
+        return InsightsSummary(
+            start_date=start_date,
+            end_date=end_date,
+            calendar_days=calendar_days,
+            days_with_any_entry=days_with_any_entry,
+            total_completed_days=total_completed_days,
+            commitment_stats=commitment_stats,
+        )
+
+    def compute_insights_trend(
+        self,
+        task_ids: Sequence[int],
+        reference_date: date,
+        year: int,
+        mode: InsightsTrendMode,
+    ) -> InsightsTrend:
+        """Calculate calendar-month shares or cumulative twice-monthly shares."""
+        if year > reference_date.year:
+            raise InvalidDateError("Trend year cannot be after the current year.")
+        if year < 1:
+            raise InvalidDateError("Trend year must be a valid calendar year.")
+
+        tasks = self._resolve_insights_tasks(task_ids)
+        selected_task_ids = [task.id for task in tasks]
+        boundaries = _insights_trend_boundaries(reference_date, year, mode)
+        counts = self._entries.get_insights_range_counts(
+            selected_task_ids,
+            boundaries,
+        )
+        available_years = tuple(
+            sorted(
+                {
+                    reference_date.year,
+                    *(
+                        entry_year
+                        for entry_year in self._entries.get_insights_available_years(
+                            selected_task_ids
+                        )
+                        if entry_year <= reference_date.year
+                    ),
+                },
+                reverse=True,
+            )
+        )
+        total_completed_by_period = tuple(
+            sum(counts.get((task.id, period_index), (0, 0))[0] for task in tasks)
+            for period_index in range(len(boundaries))
+        )
+        series = tuple(
+            InsightsTrendSeries(
+                task=task,
+                points=tuple(
+                    self._build_insights_trend_point(
+                        start_date=period_start,
+                        end_date=period_end,
+                        counts=counts.get((task.id, period_index), (0, 0)),
+                        total_completed_days=total_completed_by_period[period_index],
+                    )
+                    for period_index, (period_start, period_end) in enumerate(boundaries)
+                ),
+            )
+            for task in tasks
+        )
+        return InsightsTrend(
+            reference_date=reference_date,
+            year=year,
+            available_years=available_years,
+            mode=mode,
+            period_count=len(boundaries),
+            series=series,
         )
 
     def _compute_task_stats(
@@ -326,3 +433,98 @@ class StatsService:
             tracked_dates.update(entry.date for entry in entries)
 
         return len(tracked_dates)
+
+    def _resolve_insights_tasks(self, task_ids: Sequence[int]) -> list[Task]:
+        """Validate and resolve an explicit commitment selection without broadening it."""
+        if not task_ids:
+            raise InvalidTaskError("At least one commitment must be selected.")
+        if len(task_ids) > 500:
+            raise InvalidTaskError("No more than 500 commitments can be selected.")
+        if any(task_id <= 0 for task_id in task_ids):
+            raise InvalidTaskError("Commitment IDs must be positive.")
+        if len(set(task_ids)) != len(task_ids):
+            raise InvalidTaskError("Each commitment can only be selected once.")
+
+        tasks = self._tasks.list_by_ids(task_ids)
+        found_ids = {task.id for task in tasks}
+        missing_id = next((task_id for task_id in task_ids if task_id not in found_ids), None)
+        if missing_id is not None:
+            raise TaskNotFoundError(str(missing_id))
+        return tasks
+
+    @staticmethod
+    def _build_insights_commitment_stats(
+        task: Task,
+        counts: tuple[int, int],
+        total_completed_days: int,
+    ) -> InsightsCommitmentStats:
+        completed_days, not_completed_days = counts
+        recorded_days = completed_days + not_completed_days
+        return InsightsCommitmentStats(
+            task=task,
+            completed_days=completed_days,
+            not_completed_days=not_completed_days,
+            recorded_days=recorded_days,
+            completion_percentage=_percentage(completed_days, recorded_days),
+            distribution_percentage=_percentage(completed_days, total_completed_days),
+        )
+
+    @staticmethod
+    def _build_insights_trend_point(
+        start_date: date,
+        end_date: date,
+        counts: tuple[int, int],
+        total_completed_days: int,
+    ) -> InsightsTrendPoint:
+        completed_days, recorded_days = counts
+        return InsightsTrendPoint(
+            start_date=start_date,
+            end_date=end_date,
+            completed_days=completed_days,
+            recorded_days=recorded_days,
+            completion_percentage=_percentage(completed_days, recorded_days),
+            distribution_percentage=_percentage(completed_days, total_completed_days),
+        )
+
+
+def _percentage(numerator: int, denominator: int) -> float:
+    """Return an unrounded 0..100 percentage with an explicit zero denominator."""
+    return (numerator / denominator) * 100.0 if denominator else 0.0
+
+
+def _insights_trend_boundaries(
+    reference_date: date,
+    year: int,
+    mode: InsightsTrendMode,
+) -> tuple[tuple[date, date], ...]:
+    """Build the current rolling year or a previous January-to-December year."""
+    if year == reference_date.year:
+        current_month = date(reference_date.year, reference_date.month, 1)
+        first_month = _shift_month(current_month, -11)
+    else:
+        first_month = date(year, 1, 1)
+    month_starts = tuple(_shift_month(first_month, offset) for offset in range(12))
+
+    if mode is InsightsTrendMode.MONTHLY:
+        return tuple((month_start, _month_end(month_start)) for month_start in month_starts)
+
+    return tuple(
+        (first_month, checkpoint)
+        for month_start in month_starts
+        for checkpoint in (
+            date(month_start.year, month_start.month, 15),
+            _month_end(month_start),
+        )
+    )
+
+
+def _shift_month(month_start: date, offset: int) -> date:
+    """Shift a first-of-month date by a whole number of calendar months."""
+    month_index = (month_start.year * 12) + month_start.month - 1 + offset
+    year, zero_based_month = divmod(month_index, 12)
+    return date(year, zero_based_month + 1, 1)
+
+
+def _month_end(month_start: date) -> date:
+    """Return the final calendar date of a month."""
+    return _shift_month(month_start, 1) - timedelta(days=1)

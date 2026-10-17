@@ -11,7 +11,26 @@ from momentum.ledger.domain.errors import (
     TaskAlreadyExistsError,
     TaskNotFoundError,
 )
+from momentum.ledger.domain.models import CommitmentCategory
 from momentum.ledger.services.task_service import TaskService
+
+
+def test_commitment_category_values_are_stable() -> None:
+    assert {category.value for category in CommitmentCategory} == {
+        "health_fitness",
+        "learning_growth",
+        "career_work",
+        "personal_projects",
+        "reading_knowledge",
+        "mental_wellbeing",
+        "nutrition_self_care",
+        "relationships_social",
+        "home_responsibilities",
+        "habits_discipline",
+    }
+
+    with pytest.raises(ValueError):
+        CommitmentCategory("invalid_category")
 
 
 class TestTaskCreation:
@@ -29,9 +48,22 @@ class TestTaskCreation:
         assert task.id > 0
         assert task.name == "Exercise"
         assert task.cutoff_message == "At least 30 minutes"
+        assert task.category == CommitmentCategory.HABITS_DISCIPLINE
         assert task.is_active
         assert task.archived_date is None
         assert task.created_date is not None
+
+    def test_create_task_with_category(
+        self,
+        task_svc: TaskService,
+    ) -> None:
+        task = task_svc.create_task(
+            "Read",
+            "Ten pages",
+            CommitmentCategory.READING_KNOWLEDGE,
+        )
+
+        assert task.category == CommitmentCategory.READING_KNOWLEDGE
 
     def test_create_trims_whitespace(
         self,
@@ -289,6 +321,28 @@ class TestTaskEditing:
 
         assert updated.name == "Exercise"
         assert updated.cutoff_message == "30 min"
+
+    def test_edit_category_and_retain_it_when_omitted(
+        self,
+        task_svc: TaskService,
+    ) -> None:
+        task_svc.create_task(
+            "Exercise",
+            "20 min",
+            CommitmentCategory.HEALTH_FITNESS,
+        )
+
+        updated = task_svc.edit_task(
+            "Exercise",
+            new_category=CommitmentCategory.MENTAL_WELLBEING,
+        )
+        retained = task_svc.edit_task(
+            "Exercise",
+            new_cutoff="30 min",
+        )
+
+        assert updated.category == CommitmentCategory.MENTAL_WELLBEING
+        assert retained.category == CommitmentCategory.MENTAL_WELLBEING
 
     def test_edit_trims_values(
         self,

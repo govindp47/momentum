@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from datetime import date
 
 from momentum.ledger.domain.errors import (
@@ -22,9 +24,11 @@ class TrackingService:
         self,
         task_repo: TaskRepository,
         entry_repo: EntryRepository,
+        transaction_manager: Callable[[], AbstractContextManager[None]],
     ) -> None:
         self._tasks = task_repo
         self._entries = entry_repo
+        self._transaction_manager = transaction_manager
 
     def record_entry(
         self,
@@ -61,6 +65,26 @@ class TrackingService:
             entry_date,
             completed,
         )
+
+    def record_entries(
+        self,
+        entry_date: date,
+        entries: list[tuple[int, bool]],
+    ) -> list[DailyEntry]:
+        """Record or update a batch of daily entries atomically."""
+        if not entries:
+            raise InvalidTaskError("At least one daily entry is required.")
+
+        task_ids = [task_id for task_id, _completed in entries]
+
+        if len(task_ids) != len(set(task_ids)):
+            raise InvalidTaskError("Each task can only appear once in a daily entry batch.")
+
+        with self._transaction_manager():
+            for task_id in task_ids:
+                self._require_active_task_by_id(task_id)
+
+            return self._entries.upsert_many(entry_date, entries)
 
     def get_day_entries(
         self,
@@ -127,6 +151,17 @@ class TrackingService:
 
     def _require_active_task(self, name: str) -> Task:
         task = self._require_task(name)
+
+        if not task.is_active:
+            raise ArchivedTaskError(task.name)
+
+        return task
+
+    def _require_active_task_by_id(self, task_id: int) -> Task:
+        task = self._tasks.get_by_id(task_id)
+
+        if task is None:
+            raise TaskNotFoundError(str(task_id))
 
         if not task.is_active:
             raise ArchivedTaskError(task.name)

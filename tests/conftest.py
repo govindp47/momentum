@@ -107,6 +107,7 @@ def tracking_svc(
     return TrackingService(
         TaskRepository(db.conn),
         EntryRepository(db.conn),
+        db.transaction,
     )
 
 

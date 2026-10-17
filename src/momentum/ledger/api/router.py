@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -12,17 +13,22 @@ from momentum.api.dependencies import (
     get_ledger_tracking_service,
 )
 from momentum.ledger.api.schemas import (
+    DailyEntryBatchRecordRequest,
     DailyEntryRecordRequest,
     DailyEntryResponse,
     DayEntryResponse,
     ErrorResponse,
     HistoryEntryResponse,
+    InsightsSummaryResponse,
+    InsightsTrendResponse,
     OverallStatsResponse,
     TaskCreateRequest,
     TaskResponse,
     TaskStatsResponse,
     TaskUpdateRequest,
     daily_entry_response,
+    insights_summary_response,
+    insights_trend_response,
     overall_stats_response,
     task_response,
     task_stats_response,
@@ -36,6 +42,7 @@ from momentum.ledger.domain.errors import (
     TaskAlreadyExistsError,
     TaskNotFoundError,
 )
+from momentum.ledger.domain.models import InsightsTrendMode
 from momentum.ledger.services.stats_service import StatsService
 from momentum.ledger.services.task_service import TaskService
 from momentum.ledger.services.tracking_service import TrackingService
@@ -125,6 +132,7 @@ def create_task(
         task = service.create_task(
             request.name,
             request.cutoff_message,
+            request.category,
         )
     except LifeLedgerError as exc:
         _raise_http_error(exc)
@@ -170,7 +178,7 @@ def update_task(
     service: TaskService = Depends(get_ledger_task_service),
 ) -> TaskResponse:
     """Edit an active task."""
-    if request.name is None and request.cutoff_message is None:
+    if request.name is None and request.cutoff_message is None and request.category is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="At least one task field must be provided.",
@@ -181,6 +189,7 @@ def update_task(
             task_name,
             request.name,
             request.cutoff_message,
+            request.category,
         )
     except LifeLedgerError as exc:
         _raise_http_error(exc)
@@ -271,6 +280,33 @@ def record_entry(
     return daily_entry_response(entry)
 
 
+@router.post(
+    "/entries/batch",
+    response_model=list[DailyEntryResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Record a batch of daily entries",
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+    },
+)
+def record_entries(
+    request: DailyEntryBatchRecordRequest,
+    service: TrackingService = Depends(get_ledger_tracking_service),
+) -> list[DailyEntryResponse]:
+    """Record or update multiple YES/NO decisions atomically for one date."""
+    try:
+        entries = service.record_entries(
+            request.date,
+            [(entry.task_id, entry.completed) for entry in request.entries],
+        )
+    except LifeLedgerError as exc:
+        _raise_http_error(exc)
+
+    return [daily_entry_response(entry) for entry in entries]
+
+
 @router.get(
     "/entries",
     response_model=list[DayEntryResponse],
@@ -344,6 +380,93 @@ def get_history(
 # ---------------------------------------------------------------------------
 # Statistics
 # ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/insights/summary",
+    response_model=InsightsSummaryResponse,
+    summary="Get filtered Ledger Insights summary",
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
+)
+def get_insights_summary(
+    commitment_ids: Annotated[
+        list[int],
+        Query(
+            alias="commitment_id",
+            min_length=1,
+            max_length=500,
+            description="Selected commitment IDs. Repeat for multiple commitments.",
+        ),
+    ],
+    start_date: Annotated[date, Query(description="Inclusive start date.")],
+    end_date: Annotated[date, Query(description="Inclusive end date.")],
+    service: StatsService = Depends(get_ledger_stats_service),
+) -> InsightsSummaryResponse:
+    """Return recorded-day statistics without inferring missing days as failures."""
+    try:
+        summary = service.compute_insights_summary(
+            commitment_ids,
+            start_date,
+            end_date,
+        )
+    except LifeLedgerError as exc:
+        _raise_http_error(exc)
+
+    return insights_summary_response(summary)
+
+
+@router.get(
+    "/insights/trend",
+    response_model=InsightsTrendResponse,
+    summary="Get filtered Ledger Insights trend",
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
+)
+def get_insights_trend(
+    commitment_ids: Annotated[
+        list[int],
+        Query(
+            alias="commitment_id",
+            min_length=1,
+            max_length=500,
+            description="Selected commitment IDs. Repeat for multiple commitments.",
+        ),
+    ],
+    reference_date: Annotated[
+        date,
+        Query(description="Date whose calendar month is the newest trend month."),
+    ],
+    year: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            le=9999,
+            description="Selected trend year; defaults to the reference year.",
+        ),
+    ] = None,
+    mode: Annotated[
+        InsightsTrendMode,
+        Query(description="Calendar-month or cumulative trend view."),
+    ] = InsightsTrendMode.MONTHLY,
+    service: StatsService = Depends(get_ledger_stats_service),
+) -> InsightsTrendResponse:
+    """Return calendar-based completion-share points per commitment."""
+    try:
+        trend = service.compute_insights_trend(
+            commitment_ids,
+            reference_date,
+            year or reference_date.year,
+            mode,
+        )
+    except LifeLedgerError as exc:
+        _raise_http_error(exc)
+
+    return insights_trend_response(trend)
 
 
 @router.get(

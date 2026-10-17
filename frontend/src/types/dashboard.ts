@@ -11,37 +11,7 @@
  * - Enum values are the Python StrEnum string values.
  */
 
-// ---------------------------------------------------------------------------
-// Ledger types
-// ---------------------------------------------------------------------------
-
-/** Ledger task tracking trend. Values are literal unicode symbols from the backend Trend enum. */
-export type Trend = "↑" | "↓" | "→" | "—";
-
-export interface TaskResponse {
-  id: number;
-  name: string;
-  cutoff_message: string;
-  created_at: string; // ISO datetime string
-  archived_at: string | null; // ISO datetime string or null
-  is_active: boolean;
-}
-
-export interface TaskStatsResponse {
-  task: TaskResponse;
-  start_date: string; // ISO date string
-  end_date: string; // ISO date string
-  completed: number;
-  missed: number;
-  recorded: number;
-  completion_rate: number | null; // 0..1 ratio
-  current_streak: number;
-  longest_streak: number;
-  recent_7d_rate: number | null; // 0..1 ratio
-  recent_30d_rate: number | null; // 0..1 ratio
-  recent_90d_rate: number | null; // 0..1 ratio
-  trend: Trend;
-}
+import type { TaskStatsResponse } from "@/types/ledger";
 
 export interface DashboardLedgerResponse {
   start_date: string; // ISO date string

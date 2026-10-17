@@ -4,11 +4,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from enum import Enum
+from enum import Enum, StrEnum
 
 # ---------------------------------------------------------------------------
 # Core entities
 # ---------------------------------------------------------------------------
+
+
+class CommitmentCategory(StrEnum):
+    """Stable category values for Ledger commitments."""
+
+    HEALTH_FITNESS = "health_fitness"
+    LEARNING_GROWTH = "learning_growth"
+    CAREER_WORK = "career_work"
+    PERSONAL_PROJECTS = "personal_projects"
+    READING_KNOWLEDGE = "reading_knowledge"
+    MENTAL_WELLBEING = "mental_wellbeing"
+    NUTRITION_SELF_CARE = "nutrition_self_care"
+    RELATIONSHIPS_SOCIAL = "relationships_social"
+    HOME_RESPONSIBILITIES = "home_responsibilities"
+    HABITS_DISCIPLINE = "habits_discipline"
+
+
+DEFAULT_COMMITMENT_CATEGORY = CommitmentCategory.HABITS_DISCIPLINE
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +38,7 @@ class Task:
     cutoff_message: str
     created_at: datetime
     archived_at: datetime | None = None
+    category: CommitmentCategory = DEFAULT_COMMITMENT_CATEGORY
 
     def __post_init__(self) -> None:
         if self.id <= 0:
@@ -30,6 +49,9 @@ class Task:
 
         if not self.cutoff_message.strip():
             raise ValueError("Task cutoff message must not be empty.")
+
+        if not isinstance(self.category, CommitmentCategory):
+            raise ValueError("Task category must be a valid commitment category.")
 
         if self.archived_at is not None and self.archived_at < self.created_at:
             raise ValueError("Task cannot be archived before it was created.")
@@ -208,3 +230,120 @@ class OverallStats:
         else:
             if self.spread is None:
                 raise ValueError("Spread must be present when at least two tasks have data.")
+
+
+class InsightsTrendMode(StrEnum):
+    """Supported calendar-based views for Ledger Insights trends."""
+
+    MONTHLY = "monthly"
+    CUMULATIVE = "cumulative"
+
+    @property
+    def point_count(self) -> int:
+        """Return the number of points produced by this trend view."""
+        return 12 if self is InsightsTrendMode.MONTHLY else 24
+
+
+@dataclass(frozen=True, slots=True)
+class InsightsCommitmentStats:
+    """Recorded-entry statistics for one selected commitment."""
+
+    task: Task
+    completed_days: int
+    not_completed_days: int
+    recorded_days: int
+    completion_percentage: float
+    distribution_percentage: float
+
+    def __post_init__(self) -> None:
+        if self.completed_days < 0 or self.not_completed_days < 0:
+            raise ValueError("Insights counts cannot be negative.")
+        if self.recorded_days != self.completed_days + self.not_completed_days:
+            raise ValueError("Recorded days must equal completed + not-completed days.")
+        if not 0.0 <= self.completion_percentage <= 100.0:
+            raise ValueError("Completion percentage must be between 0 and 100.")
+        if not 0.0 <= self.distribution_percentage <= 100.0:
+            raise ValueError("Distribution percentage must be between 0 and 100.")
+
+
+@dataclass(frozen=True, slots=True)
+class InsightsSummary:
+    """Portfolio summary for selected commitments and an inclusive date range."""
+
+    start_date: date
+    end_date: date
+    calendar_days: int
+    days_with_any_entry: int
+    total_completed_days: int
+    commitment_stats: tuple[InsightsCommitmentStats, ...]
+
+    def __post_init__(self) -> None:
+        period_days = (self.end_date - self.start_date).days + 1
+        if self.end_date < self.start_date:
+            raise ValueError("Insights end date cannot precede start date.")
+        if self.calendar_days != period_days:
+            raise ValueError("Calendar days must match the inclusive date range.")
+        if not 0 <= self.days_with_any_entry <= self.calendar_days:
+            raise ValueError("Days with entries must fit within the date range.")
+        if self.total_completed_days != sum(
+            stats.completed_days for stats in self.commitment_stats
+        ):
+            raise ValueError("Total completed days must match the commitment totals.")
+
+
+@dataclass(frozen=True, slots=True)
+class InsightsTrendPoint:
+    """One calendar-range completion and portfolio-share point for a commitment."""
+
+    start_date: date
+    end_date: date
+    completed_days: int
+    recorded_days: int
+    completion_percentage: float
+    distribution_percentage: float
+
+    def __post_init__(self) -> None:
+        if self.end_date < self.start_date:
+            raise ValueError("Trend point end date cannot precede its start date.")
+        if not 0 <= self.completed_days <= self.recorded_days:
+            raise ValueError("Completed days must fit within recorded days.")
+        if not 0.0 <= self.completion_percentage <= 100.0:
+            raise ValueError("Completion percentage must be between 0 and 100.")
+        if not 0.0 <= self.distribution_percentage <= 100.0:
+            raise ValueError("Distribution percentage must be between 0 and 100.")
+
+
+@dataclass(frozen=True, slots=True)
+class InsightsTrendSeries:
+    """The calendar-based trend points for one selected commitment."""
+
+    task: Task
+    points: tuple[InsightsTrendPoint, ...]
+
+    def __post_init__(self) -> None:
+        if not self.points:
+            raise ValueError("An Insights trend series must contain at least one point.")
+
+
+@dataclass(frozen=True, slots=True)
+class InsightsTrend:
+    """Shared calendar boundaries and per-commitment historical series."""
+
+    reference_date: date
+    year: int
+    available_years: tuple[int, ...]
+    mode: InsightsTrendMode
+    period_count: int
+    series: tuple[InsightsTrendSeries, ...]
+
+    def __post_init__(self) -> None:
+        if self.year > self.reference_date.year:
+            raise ValueError("Insights trend year cannot follow its reference year.")
+        if self.available_years != tuple(sorted(set(self.available_years), reverse=True)):
+            raise ValueError("Available Insights trend years must be unique and newest first.")
+        if self.reference_date.year not in self.available_years:
+            raise ValueError("Available Insights trend years must include the reference year.")
+        if self.period_count != self.mode.point_count:
+            raise ValueError("Insights trend point count must match its mode.")
+        if any(len(series.points) != self.period_count for series in self.series):
+            raise ValueError("Every Insights trend series must match the shared point count.")
