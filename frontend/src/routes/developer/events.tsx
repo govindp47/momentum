@@ -1,11 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  AlertTriangle,
-  Bug,
-  LoaderCircle,
-  RefreshCw,
-  Server,
-} from "lucide-react";
+import { AlertTriangle, Bug, RefreshCw, Server } from "lucide-react";
 import { useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
@@ -15,7 +9,6 @@ import {
 } from "@/components/developer/event-filters";
 import { EventList } from "@/components/developer/event-list";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -47,13 +40,22 @@ export const Route = createFileRoute("/developer/events")({
 
 type EventTab = "frontend" | "backend";
 
+const headerTabClassName =
+  "group relative h-7 shrink-0 gap-1.5 rounded-2xl border border-transparent bg-transparent px-2.5 py-0 text-xs font-medium text-muted-foreground shadow-none transition-all duration-150 hover:border-rose-500/25 hover:bg-rose-500/10 hover:text-rose-600 data-[state=active]:border-rose-500/25 data-[state=active]:bg-rose-500/10 data-[state=active]:text-rose-600 data-[state=active]:shadow-[0_8px_24px_-12px_color-mix(in_oklch,var(--color-rose-500)_55%,transparent)] sm:px-3 sm:text-sm dark:hover:border-rose-400/25 dark:hover:bg-rose-400/10 dark:hover:text-rose-400 dark:data-[state=active]:border-rose-400/25 dark:data-[state=active]:bg-rose-400/10 dark:data-[state=active]:text-rose-400 dark:data-[state=active]:shadow-[0_8px_26px_-12px_color-mix(in_oklch,var(--color-rose-400)_65%,transparent)]";
+
+function ActiveHeaderTabIndicator() {
+  return (
+    <span className="absolute inset-x-3 -bottom-0.5 hidden h-0.5 rounded-full bg-orange-500 group-data-[state=active]:block dark:bg-orange-300" />
+  );
+}
+
 function LoadingEvents() {
   return (
     <div className="space-y-3" aria-label="Loading diagnostic events">
       {[0, 1, 2].map((item) => (
         <div
           key={item}
-          className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm"
+          className="rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm"
         >
           <div className="flex gap-3">
             <Skeleton className="h-5 w-16" />
@@ -77,47 +79,42 @@ function EventsError({
   onRetry: () => void;
 }) {
   return (
-    <Card className="border-destructive/30 bg-card/80 shadow-sm">
-      <CardContent className="flex flex-col items-center py-10 text-center">
-        <AlertTriangle className="h-8 w-8 text-destructive" />
-        <h3 className="mt-3 text-sm font-semibold">
-          {kind === "frontend" ? "Frontend errors" : "Backend logs"} couldn't
-          load
-        </h3>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          Check that developer mode is still enabled and try again.
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-4 rounded-lg"
-          onClick={onRetry}
-        >
-          <RefreshCw /> Retry
-        </Button>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-center py-10 text-center">
+      <AlertTriangle className="h-8 w-8 text-destructive" />
+      <h3 className="mt-2 text-sm font-semibold">
+        {kind === "frontend" ? "Frontend errors" : "Backend logs"} couldn't load
+      </h3>
+      <p className="mt-1 max-w-md text-xs text-muted-foreground">
+        Check that developer mode is still enabled and try again.
+      </p>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-4 rounded-2xl"
+        onClick={onRetry}
+      >
+        <RefreshCw /> Retry
+      </Button>
+    </div>
   );
 }
 
 function EmptyEvents({ kind }: { kind: EventTab }) {
   const Icon = kind === "frontend" ? Bug : Server;
   return (
-    <Card className="border-border/70 bg-card/80 shadow-sm">
-      <CardContent className="flex flex-col items-center py-12 text-center">
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Icon className="h-5 w-5" />
-        </span>
-        <h3 className="mt-3 text-sm font-semibold">
-          {kind === "frontend" ? "No frontend errors" : "No backend events"}
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Nothing has been {kind === "frontend" ? "captured" : "recorded"} for
-          the selected filters.
-        </p>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-center py-12 text-center">
+      <span className="flex h-11 w-11 items-center justify-center text-primary">
+        <Icon className="h-6 w-6" />
+      </span>
+      <h3 className="mt-2 text-sm font-semibold">
+        {kind === "frontend" ? "No frontend errors" : "No backend events"}
+      </h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Nothing has been {kind === "frontend" ? "captured" : "recorded"} for the
+        selected filters.
+      </p>
+    </div>
   );
 }
 
@@ -131,47 +128,30 @@ function DeveloperEventsPage() {
   );
   const frontend = useFrontendErrors(frontendFilters, tab === "frontend");
   const backend = useBackendLogs(backendFilters, tab === "backend");
-  const activeQuery = tab === "frontend" ? frontend : backend;
 
   return (
-    <AppShell subApp="dashboard">
-      <div className="mx-auto w-full max-w-5xl space-y-6">
-        <Tabs value={tab} onValueChange={(value) => setTab(value as EventTab)}>
-          <div className="flex items-center justify-between gap-3">
-            <TabsList
-              aria-label="Diagnostic event source"
-              className="rounded-lg bg-primary/20 text-muted-foreground"
-            >
-              <TabsTrigger
-                value="frontend"
-                className="gap-2 rounded-xl data-[state=active]:bg-primary-foreground data-[state=active]:text-primary data-[state=active]:shadow-md"
-              >
-                <Bug className="h-3.5 w-3.5" /> Frontend Errors
-              </TabsTrigger>
-              <TabsTrigger
-                value="backend"
-                className="gap-2 rounded-xl data-[state=active]:bg-primary-foreground data-[state=active]:text-primary data-[state=active]:shadow-md"
-              >
-                <Server className="h-3.5 w-3.5" /> Backend Logs
-              </TabsTrigger>
-            </TabsList>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0 rounded-2xl"
-              disabled={activeQuery.isFetching}
-              onClick={() => void activeQuery.refetch()}
-            >
-              {activeQuery.isFetching ? (
-                <LoaderCircle className="animate-spin" />
-              ) : (
-                <RefreshCw />
-              )}
-              Refresh
-            </Button>
-          </div>
-
+    <Tabs value={tab} onValueChange={(value) => setTab(value as EventTab)}>
+      <AppShell
+        subApp="dashboard"
+        pageNavigation={
+          <TabsList
+            aria-label="Diagnostic event source"
+            className="h-auto gap-1.5 bg-transparent p-0"
+          >
+            <TabsTrigger value="frontend" className={headerTabClassName}>
+              <Bug size={14} className="shrink-0 transition-colors" />
+              Frontend Errors
+              <ActiveHeaderTabIndicator />
+            </TabsTrigger>
+            <TabsTrigger value="backend" className={headerTabClassName}>
+              <Server size={14} className="shrink-0 transition-colors" />
+              Backend Logs
+              <ActiveHeaderTabIndicator />
+            </TabsTrigger>
+          </TabsList>
+        }
+      >
+        <div className="mx-auto w-full max-w-5xl space-y-6">
           <TabsContent value="frontend" className="mt-5 space-y-5">
             <FrontendEventFilters
               filters={frontendFilters}
@@ -209,8 +189,8 @@ function DeveloperEventsPage() {
               <EventList kind="backend" events={backend.data} />
             )}
           </TabsContent>
-        </Tabs>
-      </div>
-    </AppShell>
+        </div>
+      </AppShell>
+    </Tabs>
   );
 }

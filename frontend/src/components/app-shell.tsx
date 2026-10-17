@@ -273,9 +273,11 @@ function ThemeToggleButton({ application }: { application: ApplicationId }) {
 
 function ApplicationHeader({
   application,
+  pageNavigation,
   pageActions,
 }: {
   application: ApplicationId;
+  pageNavigation?: ReactNode;
   pageActions?: ReactNode;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -336,52 +338,53 @@ function ApplicationHeader({
           className="momentum-subapp-nav absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5"
           aria-label={`${identity.label} navigation`}
         >
-          {navItems.map(({ label, to, icon: Icon }) => {
-            const active = isActive(to);
+          {pageNavigation ??
+            navItems.map(({ label, to, icon: Icon }) => {
+              const active = isActive(to);
 
-            return (
-              <Link
-                key={to}
-                to={to as "/"}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "group relative flex h-7 shrink-0 items-center gap-1.5 rounded-2xl border px-2.5 text-xs font-medium transition-all duration-150 sm:px-3 sm:text-sm",
-                  active
-                    ? [
-                        identity.theme.surface,
-                        identity.theme.border,
-                        identity.theme.foreground,
-                        identity.theme.glow,
-                      ]
-                    : [
-                        "border-transparent text-muted-foreground",
-                        identity.theme.hover,
-                      ],
-                )}
-              >
-                <Icon
-                  size={14}
+              return (
+                <Link
+                  key={to}
+                  to={to as "/"}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "shrink-0 transition-colors",
+                    "group relative flex h-7 shrink-0 items-center gap-1.5 rounded-2xl border px-2.5 text-xs font-medium transition-all duration-150 sm:px-3 sm:text-sm",
                     active
-                      ? identity.theme.foreground
-                      : "text-muted-foreground group-hover:text-current",
+                      ? [
+                          identity.theme.surface,
+                          identity.theme.border,
+                          identity.theme.foreground,
+                          identity.theme.glow,
+                        ]
+                      : [
+                          "border-transparent text-muted-foreground",
+                          identity.theme.hover,
+                        ],
                   )}
-                />
-
-                <span>{label}</span>
-
-                {active && (
-                  <span
+                >
+                  <Icon
+                    size={14}
                     className={cn(
-                      "absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full",
-                      identity.theme.dot,
+                      "shrink-0 transition-colors",
+                      active
+                        ? identity.theme.foreground
+                        : "text-muted-foreground group-hover:text-current",
                     )}
                   />
-                )}
-              </Link>
-            );
-          })}
+
+                  <span>{label}</span>
+
+                  {active && (
+                    <span
+                      className={cn(
+                        "absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full",
+                        identity.theme.dot,
+                      )}
+                    />
+                  )}
+                </Link>
+              );
+            })}
         </nav>
 
         {/* ── Right: Application actions ─────────────────────────────── */}
@@ -399,10 +402,12 @@ function ApplicationHeader({
 function AppShellInner({
   children,
   subApp = "dashboard",
+  pageNavigation,
   pageActions,
 }: {
   children: ReactNode;
   subApp?: SubApp;
+  pageNavigation?: ReactNode;
   pageActions?: ReactNode;
 }) {
   const auth = useAuth();
@@ -793,6 +798,7 @@ function AppShellInner({
 
         <ApplicationHeader
           application={headerApplication}
+          pageNavigation={pageNavigation}
           pageActions={pageActions}
         />
 
@@ -810,6 +816,8 @@ function AppShellInner({
 export function AppShell(props: {
   children: ReactNode;
   subApp?: SubApp;
+  /** Navigation rendered in the centered portion of the application header. */
+  pageNavigation?: ReactNode;
   /**
    * Actions rendered in the right side of the sub-application header.
    * This replaces the old `headerActions` prop.
@@ -832,7 +840,11 @@ export function AppShell(props: {
 
   return (
     <ThemeProvider>
-      <AppShellInner subApp={subApp} pageActions={pageActions}>
+      <AppShellInner
+        subApp={subApp}
+        pageNavigation={props.pageNavigation}
+        pageActions={pageActions}
+      >
         {props.children}
       </AppShellInner>
     </ThemeProvider>
